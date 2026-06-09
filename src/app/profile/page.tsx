@@ -5,16 +5,19 @@ import { useRouter } from 'next/navigation';
 import { ArrowLeft, Edit2, Save, Trophy, TrendingUp, TrendingDown, DollarSign, Home } from 'lucide-react';
 import { IUser } from '@/models/User';
 import { IBet } from '@/models/Bet';
+import { IPrediction } from '@/models/Prediction';
 import { Match } from '@/data/matches';
 import { getFlag } from '@/data/flags';
 import LoginScreen from '@/components/LoginScreen';
 import { ALL_AVATARS } from '@/data/avatars';
+import { calculatePredictionPoints } from '@/lib/services/matchService';
 
 export default function ProfilePage() {
   const router = useRouter();
   const [currentUser, setCurrentUser] = useState<IUser | null>(null);
   const [users, setUsers] = useState<IUser[]>([]);
   const [bets, setBets] = useState<IBet[]>([]);
+  const [predictions, setPredictions] = useState<IPrediction[]>([]);
   const [matches, setMatches] = useState<Match[]>([]);
   const [results, setResults] = useState<any>({});
   const [loading, setLoading] = useState(true);
@@ -53,16 +56,23 @@ export default function ProfilePage() {
     loadData(savedUserId);
   }, []);
 
-  const loadData = async (userId: string) => {
+  const loadData = async (userData: string | IUser) => {
+    const userId = typeof userData === 'string' ? userData : userData._id;
+    if (typeof userData !== 'string') {
+      localStorage.setItem('userId', userId);
+    }
+
     try {
-      const [usersRes, betsRes, matchesRes, resultsRes] = await Promise.all([
+      const [usersRes, betsRes, predictionsRes, matchesRes, resultsRes] = await Promise.all([
         fetch('/api/users'),
         fetch(`/api/bets?userId=${userId}`),
+        fetch(`/api/predictions?userId=${userId}`),
         fetch('/api/matches'),
         fetch('/api/results'),
       ]);
       const usersData = await usersRes.json();
       const betsData = await betsRes.json();
+      const predictionsData = await predictionsRes.json();
       const matchesData = await matchesRes.json();
       const resultsData = await resultsRes.json();
 
@@ -72,6 +82,7 @@ export default function ProfilePage() {
       setEditAvatar(user?.avatar || '😀');
       setUsers(usersData);
       setBets(betsData);
+      setPredictions(predictionsData);
       setMatches(matchesData);
       setResults(resultsData);
     } catch (error) {
@@ -231,9 +242,69 @@ export default function ProfilePage() {
           </div>
         </div>
 
+        {/* Predictions List */}
+        <div className="space-y-3">
+          <h3 className="text-lg font-bold text-white">Meus Palpites (Bolão)</h3>
+          {predictions.length === 0 ? (
+            <div className="card p-6 text-center text-white/40">
+              Nenhum palpite realizado
+            </div>
+          ) : (
+            predictions.map(pred => {
+              const match = matches.find(m => m.id === pred.matchId);
+              const result = results[pred.matchId];
+              const reward = result ? calculatePredictionReward(pred, result) : null;
+              
+              return (
+                <div key={pred._id} className="card p-4">
+                  {match && (
+                    <div className="flex items-center justify-between">
+                      <div className="flex items-center gap-3">
+                        <span className="text-2xl">{getFlag(match.team1)}</span>
+                        <div className="flex flex-col">
+                          <span className="text-white text-xs font-medium uppercase tracking-wider opacity-40">{match.group}</span>
+                          <span className="text-white text-sm font-semibold">{match.team1}</span>
+                        </div>
+                        <div className="flex items-center gap-2 bg-white/5 px-3 py-1 rounded-lg border border-white/10">
+                          <span className="text-white font-bold">{pred.homeGoals}</span>
+                          <span className="text-white/20 text-xs">x</span>
+                          <span className="text-white font-bold">{pred.awayGoals}</span>
+                        </div>
+                        <div className="flex flex-col items-end">
+                          <span className="text-white text-xs font-medium uppercase tracking-wider opacity-40 invisible">.</span>
+                          <span className="text-white text-sm font-semibold">{match.team2}</span>
+                        </div>
+                        <span className="text-2xl">{getFlag(match.team2)}</span>
+                      </div>
+                      <div className="flex flex-col items-end gap-1">
+                        {result && (
+                          <>
+                            <div className="flex items-center gap-1.5">
+                              <span className="text-[10px] text-white/40">Resultado:</span>
+                              <span className="text-white/60 text-xs font-bold">{result.homeGoals}-{result.awayGoals}</span>
+                            </div>
+                            {reward && reward > 0 ? (
+                              <span className="bg-green-600 text-white text-[10px] font-bold px-2 py-0.5 rounded-full">GANHOU +N${reward}</span>
+                            ) : (
+                              <span className="bg-red-500/30 text-red-400 text-[10px] font-bold px-2 py-0.5 rounded-full">PERDEU</span>
+                            )}
+                          </>
+                        )}
+                        {!result && (
+                          <span className="text-yellow-400/50 text-[10px] font-bold">AGUARDANDO</span>
+                        )}
+                      </div>
+                    </div>
+                  )}
+                </div>
+              );
+            })
+          )}
+        </div>
+
         {/* Bets List */}
         <div className="space-y-3">
-          <h3 className="text-lg font-bold text-white">Minhas Apostas</h3>
+          <h3 className="text-lg font-bold text-white">Minhas Apostas (N$)</h3>
           {bets.length === 0 ? (
             <div className="card p-6 text-center text-white/40">
               Nenhuma aposta realizada

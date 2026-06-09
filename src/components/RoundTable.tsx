@@ -100,6 +100,26 @@ export default function RoundTable({
     setChatInput('');
   };
 
+  const handleClaimMoney = async () => {
+    if (!nextMatch || currentUser.foodPoints < 10) return;
+    
+    try {
+      const res = await fetch(`/api/users/${currentUser._id}`, {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ action: 'claimFood', matchId: nextMatch.id }),
+      });
+      
+      if (res.ok) {
+        onSendMessage('troquei food points por grana! 🤑');
+      }
+    } catch (error) {
+      console.error('Failed to claim money:', error);
+    }
+  };
+
+  const canClaim = nextMatch && currentUser.foodPoints >= 10 && currentUser.lastClaimedMatchId !== nextMatch.id;
+
   return (
     <div className="min-h-screen flex flex-col">
       <header className="sticky top-0 z-40 bg-[#050816]/90 backdrop-blur-md border-b border-white/10">
@@ -119,6 +139,17 @@ export default function RoundTable({
               <p className="text-yellow-400 text-xs font-bold">N${currentUser.balance.toLocaleString()}</p>
             </div>
           </button>
+
+          {canClaim && (
+            <button
+              onClick={handleClaimMoney}
+              className="bg-green-600 hover:bg-green-500 text-white text-[10px] font-bold px-3 py-2 rounded-xl animate-pulse shadow-lg shadow-green-500/20 flex items-center gap-2"
+            >
+              <Trophy className="w-3 h-3" />
+              RESGATAR N$1.000
+            </button>
+          )}
+
           <div className="flex items-center gap-1">
             <button
               onClick={() => setActiveTab('table')}
@@ -214,14 +245,17 @@ export default function RoundTable({
                   </button>
                 ))}
 
-                <div className="absolute left-1/2 top-1/2 transform -translate-x-1/2 -translate-y-1/2 w-3/5 z-0 pointer-events-none opacity-40">
+                <div className="absolute left-1/2 top-1/2 transform -translate-x-1/2 -translate-y-1/2 w-3/5 z-0 pointer-events-none">
                   {nextMatch && (
                     <div className="card p-4 text-center border-none bg-transparent">
                       <p className="text-white/50 text-[10px] mb-1">Próximo jogo</p>
-                      <div className="flex items-center justify-center gap-2 mb-1">
+                      <div className="flex items-center justify-center gap-2 mb-2">
                         <span className="text-xl">{getFlag(nextMatch.team1)}</span>
                         <span className="text-white/30">vs</span>
                         <span className="text-xl">{getFlag(nextMatch.team2)}</span>
+                      </div>
+                      <div className="flex justify-center">
+                        <Countdown targetDate={nextMatch.date} matchTime={nextMatch.time} />
                       </div>
                     </div>
                   )}
@@ -272,16 +306,6 @@ export default function RoundTable({
 
         {activeTab === 'ranking' && (
           <div className="animate-fade-in">
-            <div className="card p-3 mb-4 flex items-center justify-center gap-4 text-xs">
-              <div className="flex items-center gap-1.5">
-                <span className="w-2 h-2 rounded-full bg-yellow-500"></span>
-                <span className="text-white/50">3 pts = Placar exato</span>
-              </div>
-              <div className="flex items-center gap-1.5">
-                <span className="w-2 h-2 rounded-full bg-green-500"></span>
-                <span className="text-white/50">1 pt = Vencedor certo</span>
-              </div>
-            </div>
             <Ranking users={users} results={results} currentUserName={currentUser.name} />
           </div>
         )}

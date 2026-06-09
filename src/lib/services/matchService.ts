@@ -3,22 +3,22 @@ import { Match } from '@/data/matches';
 export function getMatchStatus(match: Match, now: number = Date.now()): 'upcoming' | 'open' | 'closed' | 'finished' {
   if (match.score1 !== undefined && match.score2 !== undefined) return 'finished';
   const matchDate = match.matchDate || new Date(match.date).getTime();
-  const closeTime = matchDate - 30 * 60 * 1000;
+  const closeTime = matchDate - 2 * 60 * 1000;
   if (now > matchDate) return 'closed';
   if (now > closeTime) return 'closed';
   return 'open';
 }
 
-export function calculatePredictionPoints(
+export function calculatePredictionReward(
   prediction: { homeGoals: number; awayGoals: number },
   result: { homeGoals: number; awayGoals: number }
 ): number {
   if (prediction.homeGoals === result.homeGoals && prediction.awayGoals === result.awayGoals) {
-    return 3;
+    return 1000; // Reward for exact score
   }
   const predWinner = getWinner(prediction.homeGoals, prediction.awayGoals);
   const actualWinner = getWinner(result.homeGoals, result.awayGoals);
-  if (predWinner === actualWinner) return 1;
+  if (predWinner === actualWinner) return 300; // Reward for winner/draw only
   return 0;
 }
 

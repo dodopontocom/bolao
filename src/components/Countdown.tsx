@@ -17,7 +17,7 @@ export default function Countdown({ targetDate, matchTime }: CountdownProps) {
     const [hours, minutes] = cleanTime.split(':').map(Number);
     const matchDate = new Date(`${targetDate}T00:00:00Z`);
     matchDate.setUTCHours(hours - offset, minutes || 0, 0, 0);
-    const closeTime = new Date(matchDate.getTime() - 30 * 60 * 1000);
+    const closeTime = new Date(matchDate.getTime() - 2 * 60 * 1000);
 
     const tick = () => {
       const now = Date.now();

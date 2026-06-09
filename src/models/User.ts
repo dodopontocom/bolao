@@ -18,6 +18,7 @@ const UserSchema = new Schema<IUser>({
   lastSeen: { type: Date, default: Date.now },
   isOnline: { type: Boolean, default: false },
   city: { type: String },
+  lastClaimedMatchId: { type: String, default: '' },
 }, {
   timestamps: true,
 });

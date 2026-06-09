@@ -9,8 +9,31 @@ export async function PUT(
   try {
     await dbConnect();
     const { id } = await params;
-    const { name, avatar } = await req.json();
+    const body = await req.json();
 
+    // Check if it's a food claim
+    if (body.action === 'claimFood') {
+      const user = await User.findById(id);
+      if (!user) return NextResponse.json({ error: 'User not found' }, { status: 404 });
+      
+      if (user.foodPoints < 10) {
+        return NextResponse.json({ error: 'Pontos insuficientes' }, { status: 400 });
+      }
+      
+      if (user.lastClaimedMatchId === body.matchId) {
+        return NextResponse.json({ error: 'Já resgatado nesta partida' }, { status: 400 });
+      }
+
+      user.foodPoints -= 10;
+      user.balance += 1000;
+      user.lastClaimedMatchId = body.matchId;
+      await user.save();
+      
+      return NextResponse.json(user);
+    }
+
+    // Normal profile update
+    const { name, avatar } = body;
     const updatedUser = await User.findByIdAndUpdate(
       id,
       { name, avatar },

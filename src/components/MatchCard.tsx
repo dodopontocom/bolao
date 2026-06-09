@@ -6,7 +6,7 @@ import { Match } from '@/data/matches';
 import { getFlag } from '@/data/flags';
 import Countdown from '@/components/Countdown';
 import { IUser } from '@/models/User';
-import { getMatchStatus, calculatePredictionPoints, calculateOdds } from '@/lib/services/matchService';
+import { getMatchStatus, calculatePredictionReward, calculateOdds } from '@/lib/services/matchService';
 
 interface MatchCardProps {
   match: Match;
@@ -112,7 +112,13 @@ export default function MatchCard({ match, userName, userId, currentUser, result
         }),
       });
       const newBet = await res.json();
-      setBets(prev => [...prev, newBet]);
+      
+      if (userBet) {
+        setBets(prev => prev.map(b => (b.userId?._id === userId || b.userId === userId) ? newBet : b));
+      } else {
+        setBets(prev => [...prev, newBet]);
+      }
+      setShowBetting(false);
     } catch (err) {
       setError('Falha ao fazer aposta');
     } finally {
@@ -125,22 +131,22 @@ export default function MatchCard({ match, userName, userId, currentUser, result
     return d.toLocaleDateString('pt-BR', { day: '2-digit', month: '2-digit' });
   };
 
-  const getPointsBadge = () => {
+  const getRewardBadge = () => {
     if (!result || !score1 || !score2) return null;
-    const points = calculatePredictionPoints(
+    const reward = calculatePredictionReward(
       { homeGoals: parseInt(score1), awayGoals: parseInt(score2) },
       result
     );
-    if (points === 3) {
-      return <span className="bg-yellow-500 text-black text-xs font-bold px-2 py-0.5 rounded-full">+3</span>;
+    if (reward === 1000) {
+      return <span className="bg-yellow-500 text-black text-[10px] font-bold px-2 py-0.5 rounded-full">+N$1k</span>;
     }
-    if (points === 1) {
-      return <span className="bg-green-600 text-white text-xs font-bold px-2 py-0.5 rounded-full">+1</span>;
+    if (reward === 300) {
+      return <span className="bg-green-600 text-white text-[10px] font-bold px-2 py-0.5 rounded-full">+N$300</span>;
     }
-    return <span className="bg-red-500/30 text-red-400 text-xs font-bold px-2 py-0.5 rounded-full">0</span>;
+    return <span className="bg-red-500/30 text-red-400 text-[10px] font-bold px-2 py-0.5 rounded-full">0</span>;
   };
 
-  const userBet = bets.find(b => b.userId?._id === userId || b.userId === userId);
+  const userBet = bets.find(b => (b.userId?._id === userId || b.userId === userId));
 
   if (loading) {
     return (
@@ -214,7 +220,7 @@ export default function MatchCard({ match, userName, userId, currentUser, result
               />
             </>
           )}
-          {getPointsBadge()}
+          {getRewardBadge()}
         </div>
 
         <div className="flex-1 flex flex-col items-center gap-1.5 min-w-0">
@@ -240,7 +246,7 @@ export default function MatchCard({ match, userName, userId, currentUser, result
                 className="flex items-center gap-1 px-3 py-2 rounded-lg text-xs font-bold bg-yellow-500/20 text-yellow-400 hover:bg-yellow-500/30 transition-colors"
               >
                 <DollarSign className="w-3 h-3" />
-                Apostar
+                {userBet ? 'Alterar' : 'Apostar'}
               </button>
               <button
                 onClick={handleSave}
@@ -270,49 +276,46 @@ export default function MatchCard({ match, userName, userId, currentUser, result
 
       {showBetting && !isClosed && !isFinished && (
         <div className="mt-4 pt-4 border-t border-white/10 space-y-3">
-          {userBet ? (
-            <div className="text-center text-white/60 text-sm">
-              Você já apostou N${userBet.amount} em {userBet.outcome} ({userBet.odd}x)
+          <div className="flex gap-2">
+            <button
+              onClick={() => setBetOutcome('home')}
+              className={`flex-1 py-2 rounded-lg text-sm font-bold transition-colors ${betOutcome === 'home' ? 'bg-yellow-500 text-black' : 'bg-white/10 text-white hover:bg-white/20'}`}
+            >
+              {match.team1} ({odds.home}x)
+            </button>
+            <button
+              onClick={() => setBetOutcome('draw')}
+              className={`flex-1 py-2 rounded-lg text-sm font-bold transition-colors ${betOutcome === 'draw' ? 'bg-yellow-500 text-black' : 'bg-white/10 text-white hover:bg-white/20'}`}
+            >
+              Empate ({odds.draw}x)
+            </button>
+            <button
+              onClick={() => setBetOutcome('away')}
+              className={`flex-1 py-2 rounded-lg text-sm font-bold transition-colors ${betOutcome === 'away' ? 'bg-yellow-500 text-black' : 'bg-white/10 text-white hover:bg-white/20'}`}
+            >
+              {match.team2} ({odds.away}x)
+            </button>
+          </div>
+          <div className="flex gap-2">
+            <input
+              type="number"
+              value={betAmount}
+              onChange={(e) => setBetAmount(e.target.value)}
+              className="flex-1 bg-white/5 border border-white/10 rounded-lg px-3 py-2 text-white"
+              placeholder="Valor"
+            />
+            <button
+              onClick={handlePlaceBet}
+              disabled={betting || !currentUser || (currentUser.balance + (userBet?.amount || 0)) < parseInt(betAmount)}
+              className="px-4 py-2 bg-green-500 hover:bg-green-400 disabled:opacity-50 disabled:cursor-not-allowed text-black font-bold rounded-lg"
+            >
+              {userBet ? 'Atualizar' : 'Apostar'}
+            </button>
+          </div>
+          {userBet && (
+            <div className="text-center text-white/40 text-[10px]">
+              Aposta atual: N${userBet.amount} em {userBet.outcome} ({userBet.odd}x)
             </div>
-          ) : (
-            <>
-              <div className="flex gap-2">
-                <button
-                  onClick={() => setBetOutcome('home')}
-                  className={`flex-1 py-2 rounded-lg text-sm font-bold transition-colors ${betOutcome === 'home' ? 'bg-yellow-500 text-black' : 'bg-white/10 text-white hover:bg-white/20'}`}
-                >
-                  {match.team1} ({odds.home}x)
-                </button>
-                <button
-                  onClick={() => setBetOutcome('draw')}
-                  className={`flex-1 py-2 rounded-lg text-sm font-bold transition-colors ${betOutcome === 'draw' ? 'bg-yellow-500 text-black' : 'bg-white/10 text-white hover:bg-white/20'}`}
-                >
-                  Empate ({odds.draw}x)
-                </button>
-                <button
-                  onClick={() => setBetOutcome('away')}
-                  className={`flex-1 py-2 rounded-lg text-sm font-bold transition-colors ${betOutcome === 'away' ? 'bg-yellow-500 text-black' : 'bg-white/10 text-white hover:bg-white/20'}`}
-                >
-                  {match.team2} ({odds.away}x)
-                </button>
-              </div>
-              <div className="flex gap-2">
-                <input
-                  type="number"
-                  value={betAmount}
-                  onChange={(e) => setBetAmount(e.target.value)}
-                  className="flex-1 bg-white/5 border border-white/10 rounded-lg px-3 py-2 text-white"
-                  placeholder="Valor"
-                />
-                <button
-                  onClick={handlePlaceBet}
-                  disabled={betting || !currentUser || currentUser.balance < parseInt(betAmount)}
-                  className="px-4 py-2 bg-green-500 hover:bg-green-400 disabled:opacity-50 disabled:cursor-not-allowed text-black font-bold rounded-lg"
-                >
-                  Apostar
-                </button>
-              </div>
-            </>
           )}
         </div>
       )}
