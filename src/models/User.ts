@@ -5,6 +5,7 @@ export interface IUser extends Document {
   avatar: string;
   balance: number;
   foodPoints: number;
+  totalFoodMoney?: number;
   lastSeen: Date;
   isOnline: boolean;
   city?: string;
@@ -17,6 +18,7 @@ const UserSchema = new Schema<IUser>({
   balance: { type: Number, default: 10000 },
   foodPoints: { type: Number, default: 0 },
   totalFoodPoints: { type: Number, default: 0 },
+  totalFoodMoney: { type: Number, default: 0 },
   lastSeen: { type: Date, default: Date.now },
   isOnline: { type: Boolean, default: false },
   city: { type: String },

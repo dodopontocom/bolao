@@ -21,11 +21,11 @@ interface LoginScreenProps {
 }
 
 export default function LoginScreen({ onLogin, existingUsers }: LoginScreenProps) {
-  const [step, setStep] = useState(1); // 1: PIN, 2: Name, 3: City, 4: Grito, 5: Avatar
+  const [step, setStep] = useState(1); // 1: PIN, 2: Name, 3: City, 4: Jargon, 5: Avatar
   const [pinDigits, setPinDigits] = useState(['', '', '']);
   const [name, setName] = useState('');
   const [city, setCity] = useState('');
-  const [grito, setGrito] = useState('');
+  const [jargon, setJargon] = useState('');
   const [avatar, setAvatar] = useState('');
   const [error, setError] = useState('');
   
@@ -110,7 +110,7 @@ export default function LoginScreen({ onLogin, existingUsers }: LoginScreenProps
   const handleNextStep = () => {
     if (step === 2 && !name.trim()) return;
     if (step === 3 && !city) return;
-    if (step === 4 && !grito) return;
+    if (step === 4 && !jargon) return;
     setStep(step + 1);
   };
 
@@ -125,7 +125,7 @@ export default function LoginScreen({ onLogin, existingUsers }: LoginScreenProps
       const res = await fetch('/api/users', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ name, avatar, city, grito }),
+        body: JSON.stringify({ name, avatar, city, jargon }),
       });
 
       const user = await res.json();
@@ -312,7 +312,7 @@ export default function LoginScreen({ onLogin, existingUsers }: LoginScreenProps
             </div>
           )}
 
-          {/* Step 4: Grito */}
+          {/* Step 4: Jargon */}
           {step === 4 && (
             <div className="space-y-6">
               <div className="text-center">
@@ -324,14 +324,14 @@ export default function LoginScreen({ onLogin, existingUsers }: LoginScreenProps
                   <button
                     key={g}
                     type="button"
-                    onClick={() => setGrito(g)}
+                    onClick={() => setJargon(g)}
                     className={`w-full py-4 px-4 rounded-2xl text-white font-bold transition-all flex items-center justify-center gap-2 ${
-                      grito === g ? 'bg-yellow-500/30 border-2 border-yellow-500 text-yellow-400' : 
+                      jargon === g ? 'bg-yellow-500/30 border-2 border-yellow-500 text-yellow-400' : 
                       'bg-white/5 border border-white/10 hover:bg-white/10'
                     }`}
                   >
                     {g}
-                    {grito === g && <CheckCircle2 className="w-5 h-5" />}
+                    {jargon === g && <CheckCircle2 className="w-5 h-5" />}
                   </button>
                 ))}
               </div>
@@ -345,7 +345,7 @@ export default function LoginScreen({ onLogin, existingUsers }: LoginScreenProps
                 </button>
                 <button
                   onClick={handleNextStep}
-                  disabled={!grito}
+                  disabled={!jargon}
                   className="flex-1 py-4 rounded-2xl bg-gradient-to-r from-yellow-500 to-yellow-600 hover:from-yellow-400 hover:to-yellow-500 disabled:opacity-50 disabled:cursor-not-allowed text-black font-bold transition-all flex items-center justify-center gap-2"
                 >
                   Continuar

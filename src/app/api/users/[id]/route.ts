@@ -26,6 +26,7 @@ export async function PUT(
 
       // No longer subtracting foodPoints - Level is persistent
       user.balance += 1000;
+      user.totalFoodMoney = (user.totalFoodMoney || 0) + 1000;
       user.lastClaimedMatchId = body.matchId;
       await user.save();
       

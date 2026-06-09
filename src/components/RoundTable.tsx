@@ -8,7 +8,7 @@ import { IResult } from '@/models/Result';
 import { IFood } from '@/models/Food';
 import { IChat } from '@/models/Chat';
 import { getFlag } from '@/data/flags';
-import { LogOut, Settings, Trophy, List, BarChart3, User, Home, Send, HelpCircle } from 'lucide-react';
+import { LogOut, Settings, Trophy, List, BarChart3, User, Home, Send, HelpCircle, Utensils } from 'lucide-react';
 import MatchCard from '@/components/MatchCard';
 import AdminPanel from '@/components/AdminPanel';
 import Ranking from '@/components/Ranking';
@@ -158,19 +158,15 @@ export default function RoundTable({
                 {currentUser.name}
                 {currentUser.city && <span className="ml-2 text-[10px] text-white/40 font-normal">({currentUser.city})</span>}
               </p>
-              <p className="text-yellow-400 text-xs font-bold">N${currentUser.balance.toLocaleString()}</p>
+              <div className="flex items-center gap-3">
+                <p className="text-yellow-400 text-xs font-bold">N${currentUser.balance.toLocaleString()}</p>
+                <div className="flex items-center gap-1 text-green-400">
+                  <Utensils className="w-3 h-3" />
+                  <span className="text-xs font-bold">{currentUser.foodPoints || 0}</span>
+                </div>
+              </div>
             </div>
           </button>
-
-          {canClaim && (
-            <button
-              onClick={handleClaimMoney}
-              className="bg-green-600 hover:bg-green-500 text-white text-[10px] font-bold px-3 py-2 rounded-xl animate-pulse shadow-lg shadow-green-500/20 flex items-center gap-2"
-            >
-              <Trophy className="w-3 h-3" />
-              RESGATAR N$1.000
-            </button>
-          )}
 
           <div className="flex items-center gap-1">
             <button
@@ -270,7 +266,7 @@ export default function RoundTable({
                     >
                       {(userChat || (isJargonActive && user.jargon)) && (
                         <div className="absolute bottom-full mb-2 bg-white text-black text-[10px] font-bold py-1 px-2 rounded-lg shadow-xl whitespace-nowrap animate-bounce z-50 ring-2 ring-black/5">
-                          {userChat ? userChat.message : user.jargon}
+                          {isJargonActive && user.jargon ? user.jargon : userChat?.message}
                           <div className="absolute top-full left-1/2 -translate-x-1/2 border-8 border-transparent border-t-white"></div>
                         </div>
                       )}
@@ -305,6 +301,16 @@ export default function RoundTable({
                 ))}
               </div>
             </div>
+
+            {canClaim && (
+              <button
+                onClick={handleClaimMoney}
+                className="w-full bg-green-600 hover:bg-green-500 text-white text-xs font-bold py-4 rounded-2xl animate-pulse shadow-lg shadow-green-500/20 flex items-center justify-center gap-3"
+              >
+                <Trophy className="w-5 h-5" />
+                RESGATAR N$1.000 (FOMINHA LEVEL {currentUser.foodPoints})
+              </button>
+            )}
 
             {/* Chat Input */}
             <form onSubmit={handleSendChat} className="flex gap-2">

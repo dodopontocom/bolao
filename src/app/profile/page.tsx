@@ -134,7 +134,21 @@ export default function ProfilePage() {
   };
 
   const totalSpent = bets.reduce((sum, bet) => sum + bet.amount, 0);
-  const totalWon = bets.filter(bet => bet.won).reduce((sum, bet) => sum + (bet.payout || 0), 0);
+  
+  // Calculate total won from both bets and predictions
+  const totalWon = useMemo(() => {
+    const betsWon = bets.filter(bet => bet.won).reduce((sum, bet) => sum + (bet.payout || 0), 0);
+    const predictionsWon = predictions.reduce((sum, pred) => {
+      const result = results[pred.matchId];
+      if (!result?.finished) return sum;
+      return sum + calculatePredictionReward(
+        { homeGoals: pred.homeGoals, awayGoals: pred.awayGoals },
+        { homeGoals: result.homeGoals, awayGoals: result.awayGoals }
+      );
+    }, 0);
+    return betsWon + predictionsWon + (currentUser?.totalFoodMoney || 0);
+  }, [bets, predictions, results, currentUser?.totalFoodMoney]);
+
   const netProfit = totalWon - totalSpent;
 
   if (loading) {
@@ -271,81 +285,115 @@ export default function ProfilePage() {
         <div className="card p-6 mb-6">
           <h3 className="text-lg font-bold text-white mb-4 flex items-center gap-2">
             <DollarSign className="w-5 h-5" />
-            Financeiro
+            Resumo Financeiro
           </h3>
           <div className="space-y-3">
             <div className="flex justify-between items-center">
-              <span className="text-white/60">Total gasto</span>
+              <span className="text-white/60">Total investido</span>
               <span className="text-red-400 font-medium">- N$ {totalSpent.toLocaleString()}</span>
             </div>
             <div className="flex justify-between items-center">
-              <span className="text-white/60">Total ganho</span>
+              <span className="text-white/60">Total recebido</span>
               <span className="text-green-400 font-medium">+ N$ {totalWon.toLocaleString()}</span>
             </div>
             <div className="flex justify-between items-center pt-3 border-t border-white/10">
-              <span className="text-white font-medium">Resultado</span>
+              <span className="text-white font-medium">Lucro / Prejuízo</span>
               <span className={`font-bold ${netProfit >= 0 ? 'text-green-400' : 'text-red-400'}`}>
                 {netProfit >= 0 ? '+' : ''} N$ {netProfit.toLocaleString()}
               </span>
             </div>
+            <div className="flex justify-between items-center pt-1">
+              <span className="text-white/40 text-xs italic">Seu lucro/prejuízo total em relação aos 10.000 iniciais.</span>
+            </div>
           </div>
         </div>
 
-        {/* Bets List */}
+        {/* Activity List */}
         <div className="card p-6">
           <h3 className="text-lg font-bold text-white mb-4 flex items-center gap-2">
             <Trophy className="w-5 h-5" />
-            Minhas Apostas
+            Minhas Apostas & Palpites
           </h3>
-          {bets.length === 0 ? (
-            <p className="text-white/60 text-center py-4">Nenhuma aposta ainda</p>
+          {bets.length === 0 && predictions.length === 0 ? (
+            <p className="text-white/60 text-center py-4">Nenhuma atividade ainda</p>
           ) : (
             <div className="space-y-4">
-              {bets.map((bet) => {
-                const match = matches.find((m) => m.id === bet.matchId);
-                const result = results[bet.matchId];
-                if (!match) return null;
-                
-                return (
-                  <div key={bet._id} className="bg-white/5 rounded-xl p-4">
-                    <div className="flex items-center justify-between mb-2">
-                      <div className="flex items-center gap-2">
-                        <span className="text-2xl">{getFlag(match.team1)}</span>
-                        <span className="text-white font-medium">{match.team1}</span>
-                        <span className="text-white/60">x</span>
-                        <span className="text-white font-medium">{match.team2}</span>
-                        <span className="text-2xl">{getFlag(match.team2)}</span>
-                      </div>
-                      <span className={`text-sm px-2 py-1 rounded-full ${
-                        !bet.settled ? 'bg-yellow-500/20 text-yellow-400' :
-                        bet.won ? 'bg-green-500/20 text-green-400' :
-                        'bg-red-500/20 text-red-400'
-                      }`}>
-                        {!bet.settled ? 'Pendente' :
-                         bet.won ? 'Ganhou!' : 'Perdeu'}
-                      </span>
-                    </div>
-                    
-                    {!bet.settled && (
-                      <div className="flex justify-center py-2 mb-2 border-y border-white/5">
-                        <Countdown matchDate={match.matchDate} />
-                      </div>
-                    )}
+              {/* Combine and sort by date or just list both */}
+              {[...bets.map(b => ({ ...b, type: 'bet' })), ...predictions.map(p => ({ ...p, type: 'prediction' }))]
+                .sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime())
+                .map((item: any) => {
+                  const match = matches.find((m) => m.id === item.matchId);
+                  const result = results[item.matchId];
+                  if (!match) return null;
+                  
+                  const isBet = item.type === 'bet';
+                  const isFinished = !!result?.finished;
 
-                    <div className="flex items-center justify-between">
-                      <div className="text-sm text-white/60">
-                        Aposta: {bet.outcome === 'home' ? match.team1 : bet.outcome === 'draw' ? 'Empate' : match.team2}
+                  return (
+                    <div key={item._id} className="bg-white/5 rounded-xl p-4">
+                      <div className="flex items-center justify-between mb-2">
+                        <div className="flex items-center gap-2">
+                          <span className="text-2xl">{getFlag(match.team1)}</span>
+                          <span className="text-white font-medium">{match.team1}</span>
+                          <span className="text-white/60">x</span>
+                          <span className="text-white font-medium">{match.team2}</span>
+                          <span className="text-2xl">{getFlag(match.team2)}</span>
+                        </div>
+                        <span className={`text-[10px] px-2 py-0.5 rounded-full font-bold uppercase tracking-wider ${
+                          isBet ? 'bg-blue-500/20 text-blue-400' : 'bg-purple-500/20 text-purple-400'
+                        }`}>
+                          {isBet ? 'Aposta' : 'Bolão'}
+                        </span>
                       </div>
-                      <div className="text-sm">
-                        <span className="text-white/60">N$ {bet.amount.toLocaleString()}</span>
-                        {bet.settled && bet.won && (
-                          <span className="text-green-400 ml-2">→ N$ {(bet.payout || 0).toLocaleString()}</span>
-                        )}
+
+                      {!isFinished && (
+                        <div className="flex justify-center py-2 mb-2 border-y border-white/5">
+                          <Countdown matchDate={match.matchDate} />
+                        </div>
+                      )}
+
+                      <div className="flex items-center justify-between mt-2">
+                        <div className="text-sm">
+                          {isBet ? (
+                            <span className="text-white/60">
+                              Palpite: <span className="text-white">{item.outcome === 'home' ? match.team1 : item.outcome === 'draw' ? 'Empate' : match.team2}</span>
+                            </span>
+                          ) : (
+                            <span className="text-white/60">
+                              Placar: <span className="text-white">{item.homeGoals} x {item.awayGoals}</span>
+                            </span>
+                          )}
+                        </div>
+                        
+                        <div className="text-right">
+                          {!isFinished ? (
+                            <span className="text-yellow-500/80 text-xs font-medium">Aguardando...</span>
+                          ) : (
+                            <div>
+                              {isBet ? (
+                                <span className={`text-sm font-bold ${item.won ? 'text-green-400' : 'text-red-400'}`}>
+                                  {item.won ? `+ N$ ${item.payout.toLocaleString()}` : `- N$ ${item.amount.toLocaleString()}`}
+                                </span>
+                              ) : (
+                                (() => {
+                                  const reward = calculatePredictionReward(
+                                    { homeGoals: item.homeGoals, awayGoals: item.awayGoals },
+                                    { homeGoals: result.homeGoals, awayGoals: result.awayGoals }
+                                  );
+                                  return (
+                                    <span className={`text-sm font-bold ${reward > 0 ? 'text-green-400' : 'text-white/30'}`}>
+                                      {reward > 0 ? `+ N$ ${reward.toLocaleString()}` : 'Errou'}
+                                    </span>
+                                  );
+                                })()
+                              )}
+                            </div>
+                          )}
+                        </div>
                       </div>
                     </div>
-                  </div>
-                );
-              })}
+                  );
+                })}
             </div>
           )}
         </div>
