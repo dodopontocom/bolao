@@ -52,6 +52,7 @@ export default function RoundTable({
   const [movingToFood, setMovingToFood] = useState<{ id: string, x: number, y: number } | null>(null);
   const [isReturning, setIsReturning] = useState(false);
   const [showTutorial, setShowTutorial] = useState(false);
+  const [activeGritoUserId, setActiveGritoUserId] = useState<string | null>(null);
 
   // Check for first time tutorial
   useEffect(() => {
@@ -61,6 +62,16 @@ export default function RoundTable({
       localStorage.setItem('hasSeenTutorial', 'true');
     }
   }, []);
+
+  // Hide jargon after 3 seconds
+  useEffect(() => {
+    if (activeJargonUserId) {
+      const timer = setTimeout(() => {
+        setActiveJargonUserId(null);
+      }, 3000);
+      return () => clearTimeout(timer);
+    }
+  }, [activeJargonUserId]);
 
   const calculateBasePosition = (index: number, total: number) => {
     const angle = (index / total) * Math.PI * 2 - Math.PI / 2;
@@ -249,6 +260,7 @@ export default function RoundTable({
                   const pos = isCurrent ? avatarPos : calculateBasePosition(index, allAroundUsers.length);
                   const isOnline = new Date(user.lastSeen) > new Date(Date.now() - 60000);
                   const userChat = chats.find(c => c.userId === user._id);
+                  const isJargonActive = activeJargonUserId === user._id;
 
                   return (
                     <div
@@ -256,16 +268,19 @@ export default function RoundTable({
                       className={`absolute transform -translate-x-1/2 -translate-y-1/2 flex flex-col items-center gap-1 transition-all duration-1000 ease-in-out pointer-events-auto ${isOnline ? '' : 'opacity-40'} ${isCurrent ? 'z-50' : 'z-40'}`}
                       style={{ left: `${pos.x}%`, top: `${pos.y}%` }}
                     >
-                      {userChat && (
+                      {(userChat || (isJargonActive && user.jargon)) && (
                         <div className="absolute bottom-full mb-2 bg-white text-black text-[10px] font-bold py-1 px-2 rounded-lg shadow-xl whitespace-nowrap animate-bounce z-50 ring-2 ring-black/5">
-                          {userChat.message}
+                          {userChat ? userChat.message : user.jargon}
                           <div className="absolute top-full left-1/2 -translate-x-1/2 border-8 border-transparent border-t-white"></div>
                         </div>
                       )}
                       <div className="relative">
-                        <div className={`w-12 h-12 rounded-full bg-white/10 border-2 flex items-center justify-center text-2xl shadow-lg ${isCurrent ? 'border-yellow-400 scale-110 shadow-yellow-400/20' : 'border-white/20'}`}>
+                        <button
+                          onClick={() => user.jargon && setActiveJargonUserId(user._id)}
+                          className={`w-12 h-12 rounded-full bg-white/10 border-2 flex items-center justify-center text-2xl shadow-lg transition-transform ${isCurrent ? 'border-yellow-400 scale-110 shadow-yellow-400/20' : 'border-white/20 hover:scale-110'}`}
+                        >
                           {user.avatar}
-                        </div>
+                        </button>
                         {isOnline && (
                           <div className="absolute -bottom-1 -right-1 w-4 h-4 bg-green-500 rounded-full border-2 border-[#050816] animate-pulse"></div>
                         )}

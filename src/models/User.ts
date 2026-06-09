@@ -8,6 +8,7 @@ export interface IUser extends Document {
   lastSeen: Date;
   isOnline: boolean;
   city?: string;
+  grito?: string;
 }
 
 const UserSchema = new Schema<IUser>({
@@ -19,6 +20,7 @@ const UserSchema = new Schema<IUser>({
   lastSeen: { type: Date, default: Date.now },
   isOnline: { type: Boolean, default: false },
   city: { type: String },
+  grito: { type: String },
   lastClaimedMatchId: { type: String, default: '' },
 }, {
   timestamps: true,

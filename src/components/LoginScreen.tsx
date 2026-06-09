@@ -1,349 +1,411 @@
 'use client';
 
-import { useState, useRef, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { IUser } from '@/models/User';
 import { ALL_AVATARS } from '@/data/avatars';
-import { MapPin, User as UserIcon, Lock } from 'lucide-react';
+import { ArrowRight, ArrowLeft, CheckCircle2 } from 'lucide-react';
+
+const PREDEFINED_CITIES = ['Pilar', 'Sorocaba', 'Piedade', 'Valinhos', 'Cocais'];
+const GRITOS = [
+  'Bora Hexa!',
+  'Agora Vem!',
+  'Tô confiante!',
+  'Não sei não!',
+  'iiih já era!',
+  'Neymar!'
+];
 
 interface LoginScreenProps {
   onLogin: (user: IUser) => void;
   existingUsers: IUser[];
 }
 
-const CITIES = ['Pilar', 'Sorocaba', 'Piedade', 'Valinhos', 'Cocais'];
-
 export default function LoginScreen({ onLogin, existingUsers }: LoginScreenProps) {
-  const [name, setName] = useState('');
+  const [step, setStep] = useState(1); // 1: PIN, 2: Name, 3: City, 4: Grito, 5: Avatar
   const [pinDigits, setPinDigits] = useState(['', '', '']);
-  const [selectedCity, setSelectedCity] = useState(CITIES[0]);
+  const [name, setName] = useState('');
+  const [city, setCity] = useState('');
+  const [grito, setGrito] = useState('');
+  const [avatar, setAvatar] = useState('');
   const [error, setError] = useState('');
-  const [isVerifying, setIsVerifying] = useState(false);
-  const [showExisting, setShowExisting] = useState(false);
   
-  const nameInputRef = useRef<HTMLInputElement>(null);
-  const pinRefs = [
+  const pinInputs = [
     useRef<HTMLInputElement>(null),
     useRef<HTMLInputElement>(null),
-    useRef<HTMLInputElement>(null),
+    useRef<HTMLInputElement>(null)
   ];
+  const nameInputRef = useRef<HTMLInputElement>(null);
 
   // Get first available avatar
   const getFirstAvailableAvatar = () => {
     const usedAvatars = new Set(existingUsers.map(u => u.avatar));
     return ALL_AVATARS.find(a => !usedAvatars.has(a)) || ALL_AVATARS[0];
   };
-  
-  const [avatar, setAvatar] = useState(getFirstAvailableAvatar());
 
-  // Auto focus on name input on mount
+  // Initialize avatar when component mounts or existingUsers changes
   useEffect(() => {
-    if (nameInputRef.current) {
-      nameInputRef.current.focus();
-    }
-  }, []);
+    setAvatar(getFirstAvailableAvatar());
+  }, [existingUsers]);
 
-  const verifyFullPin = async (fullPin: string) => {
-    if (!name.trim()) {
-      setError('Preencha seu nome primeiro');
-      setPinDigits(['', '', '']);
+  // Auto-focus when step changes
+  useEffect(() => {
+    if (step === 1) {
+      pinInputs[0].current?.focus();
+    } else if (step === 2) {
       nameInputRef.current?.focus();
-      return;
     }
+  }, [step]);
 
-    setIsVerifying(true);
-    setError('');
-
-    try {
-      // 1. Verify PIN
-      const authRes = await fetch('/api/auth', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ pin: fullPin }),
-      });
-      const authData = await authRes.json();
-
-      if (!authData.success) {
-        setError('PIN inválido');
-        setPinDigits(['', '', '']);
-        pinRefs[0].current?.focus();
-        setIsVerifying(false);
-        return;
-      }
-
-      // 2. Create or Update user
-      const userRes = await fetch('/api/users', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ 
-          name: name.trim(), 
-          avatar, 
-          city: selectedCity 
-        }),
-      });
-
-      const user = await userRes.json();
-      if (user.error) {
-        setError(user.error);
-        setPinDigits(['', '', '']);
-        pinRefs[0].current?.focus();
-        setIsVerifying(false);
-      } else {
-        onLogin(user);
-      }
-    } catch (err) {
-      setError('Erro ao entrar na mesa');
-      setPinDigits(['', '', '']);
-      pinRefs[0].current?.focus();
-      setIsVerifying(false);
-    }
-  };
-
-  const handlePinChange = (index: number, value: string) => {
-    const cleanValue = value.replace(/[^0-9]/g, '').slice(-1);
-    if (!cleanValue && value !== '') return;
-
-    const newDigits = [...pinDigits];
-    newDigits[index] = cleanValue;
-    setPinDigits(newDigits);
-
-    if (cleanValue) {
-      if (index < 2) {
-        pinRefs[index + 1].current?.focus();
-      } else {
-        const fullPin = newDigits.join('');
-        if (fullPin.length === 3) {
-          verifyFullPin(fullPin);
-        }
-      }
-    }
-  };
-
-  const handlePinKeyDown = (index: number, e: React.KeyboardEvent<HTMLInputElement>) => {
-    if (e.key === 'Backspace' && !pinDigits[index] && index > 0) {
-      pinRefs[index - 1].current?.focus();
-    }
-  };
-
-  const handleLoginSubmit = (e: React.FormEvent) => {
-    e.preventDefault();
-    const fullPin = pinDigits.join('');
-    if (fullPin.length === 3) {
-      verifyFullPin(fullPin);
-    }
-  };
-
-  const handleSelectExistingUserWithPin = async (user: IUser) => {
-    const fullPin = pinDigits.join('');
-    if (fullPin.length < 3) {
-      setError('Digite o PIN primeiro');
-      pinRefs[0].current?.focus();
-      return;
+  const handlePinDigitChange = (index: number, value: string) => {
+    if (value.length > 1) {
+      value = value.slice(-1);
     }
     
-    setIsVerifying(true);
+    const newDigits = [...pinDigits];
+    newDigits[index] = value;
+    setPinDigits(newDigits);
+
+    if (value && index < 2) {
+      pinInputs[index + 1].current?.focus();
+    }
+    
+    // Auto-submit when all digits are filled
+    if (value && index === 2) {
+      setTimeout(() => submitPin(newDigits.join('')), 200);
+    }
+  };
+
+  const submitPin = async (pin: string) => {
     setError('');
 
     try {
-      // 1. Verify PIN
-      const authRes = await fetch('/api/auth', {
+      const res = await fetch('/api/auth', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ pin: fullPin }),
+        body: JSON.stringify({ pin }),
       });
-      const authData = await authRes.json();
 
-      if (!authData.success) {
-        setError('PIN inválido');
+      const data = await res.json();
+
+      if (data.success) {
+        setStep(2);
+      } else {
+        setError(data.error || 'PIN inválido');
         setPinDigits(['', '', '']);
-        pinRefs[0].current?.focus();
-        setIsVerifying(false);
-        return;
+        pinInputs[0].current?.focus();
       }
+    } catch (err) {
+      setError('Erro ao verificar PIN');
+    }
+  };
 
-      // 2. Login
+  const handlePinSubmit = (e: React.FormEvent) => {
+    e.preventDefault();
+    const pin = pinDigits.join('');
+    if (pin.length === 3) {
+      submitPin(pin);
+    }
+  };
+
+  const handleNextStep = () => {
+    if (step === 2 && !name.trim()) return;
+    if (step === 3 && !city) return;
+    if (step === 4 && !grito) return;
+    setStep(step + 1);
+  };
+
+  const handlePrevStep = () => {
+    if (step > 1) {
+      setStep(step - 1);
+    }
+  };
+
+  const handleComplete = async () => {
+    try {
       const res = await fetch('/api/users', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ name: user.name, avatar: user.avatar, city: user.city }),
+        body: JSON.stringify({ name, avatar, city, grito }),
+      });
+
+      const user = await res.json();
+      onLogin(user);
+    } catch (err) {
+      setError('Erro ao criar perfil');
+    }
+  };
+
+  const handleSelectExistingUser = async (user: IUser) => {
+    try {
+      const res = await fetch('/api/users', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ name: user.name, avatar: user.avatar }),
       });
 
       const updatedUser = await res.json();
       onLogin(updatedUser);
     } catch (err) {
       setError('Erro ao entrar');
-      setPinDigits(['', '', '']);
-      pinRefs[0].current?.focus();
-      setIsVerifying(false);
     }
   };
 
   return (
     <div className="min-h-screen bg-[#050816] flex items-center justify-center p-4">
-      <div className="w-full max-w-lg">
+      <div className="w-full max-w-md">
         <div className="text-center mb-8">
-          <h1 className="text-4xl font-bold text-white mb-2 tracking-tight">⚽ Bolão 2026</h1>
-          <p className="text-white/40 text-sm uppercase tracking-[0.2em] font-bold">Mesa da Família</p>
+          <h1 className="text-4xl font-bold text-white mb-2">⚽ Bolão 2026</h1>
+          <p className="text-white/60">Venha participar da mesa da família!</p>
         </div>
 
-        <div className="card p-6 space-y-8">
-          {/* Section: Existing Users or Mode Toggle */}
-          {existingUsers.length > 0 && (
-            <div className="flex justify-center">
-              <button 
-                onClick={() => setShowExisting(!showExisting)}
-                className="text-yellow-400/60 hover:text-yellow-400 text-xs font-bold uppercase tracking-widest transition-colors"
-              >
-                {showExisting ? 'Criar Novo Perfil' : `Já está na mesa? (${existingUsers.length} membros)`}
-              </button>
+        {/* Progress Indicator */}
+        <div className="flex items-center justify-center gap-2 mb-8">
+          {[1, 2, 3, 4, 5].map((num) => (
+            <div key={num} className="flex items-center">
+              <div className={`w-8 h-8 rounded-full flex items-center justify-center text-sm font-bold transition-all ${
+                step > num ? 'bg-green-500 text-white' :
+                step === num ? 'bg-yellow-500 text-black' : 'bg-white/10 text-white/40'
+              }`}>
+                {step > num ? <CheckCircle2 className="w-5 h-5" /> : num}
+              </div>
+              {num < 5 && (
+                <div className={`w-12 h-1 ${step > num ? 'bg-green-500' : 'bg-white/10'}`} />
+              )}
+            </div>
+          ))}
+        </div>
+
+        <div className="card p-8">
+          {error && (
+            <div className="mb-4 p-3 bg-red-500/20 border border-red-500/50 rounded-xl text-red-400 text-sm">
+              {error}
             </div>
           )}
 
-          {showExisting ? (
-            <div className="space-y-6">
-              <div className="grid grid-cols-2 gap-3">
-                {existingUsers.map((user) => (
-                  <button
-                    key={user._id}
-                    onClick={() => handleSelectExistingUserWithPin(user)}
-                    className="flex items-center gap-3 p-3 rounded-xl bg-white/5 border border-white/5 hover:border-yellow-500/30 hover:bg-white/10 transition-all group"
-                  >
-                    <span className="text-2xl group-hover:scale-110 transition-transform">{user.avatar}</span>
-                    <div className="text-left">
-                      <p className="text-white font-medium text-sm truncate">{user.name}</p>
-                      <p className="text-[10px] text-white/40">{user.city}</p>
-                    </div>
-                  </button>
+          {/* Step 1: PIN */}
+          {step === 1 && (
+            <form onSubmit={handlePinSubmit} className="space-y-6">
+              <div className="text-center">
+                <h2 className="text-2xl font-bold text-white mb-2">Digite o PIN</h2>
+                <p className="text-white/60">Entre com o PIN de acesso</p>
+              </div>
+              <div className="flex justify-center gap-4">
+                {pinDigits.map((digit, index) => (
+                  <input
+                    key={index}
+                    ref={pinInputs[index]}
+                    type="text"
+                    maxLength={1}
+                    value={digit}
+                    onChange={(e) => handlePinDigitChange(index, e.target.value)}
+                    className="w-20 h-24 bg-white/5 border border-white/10 rounded-2xl text-white text-5xl text-center font-bold focus:outline-none focus:border-yellow-400 focus:ring-2 focus:ring-yellow-400/30"
+                    placeholder="•"
+                    autoFocus={index === 0}
+                  />
                 ))}
               </div>
-              <div className="space-y-4 pt-4 border-t border-white/5">
-                <label className="block text-white/60 text-[10px] font-bold uppercase tracking-wider text-center">Digite o PIN para entrar</label>
-                <div className="flex justify-center gap-3">
-                  {pinDigits.map((digit, index) => (
-                    <input
-                      key={index}
-                      ref={pinRefs[index]}
-                      type="text"
-                      inputMode="numeric"
-                      pattern="[0-9]*"
-                      maxLength={1}
-                      value={digit}
-                      onChange={(e) => handlePinChange(index, e.target.value)}
-                      onKeyDown={(e) => handlePinKeyDown(index, e)}
-                      disabled={isVerifying}
-                      className={`w-12 h-14 bg-white/5 border-2 rounded-xl text-white text-center text-2xl font-bold focus:outline-none transition-all
-                        ${error ? 'border-red-500/50 bg-red-500/5' : 'border-white/10 focus:border-yellow-400 focus:bg-white/10'}
-                      `}
-                      placeholder="•"
-                    />
-                  ))}
-                </div>
-              </div>
-            </div>
-          ) : (
-            <form onSubmit={handleLoginSubmit} className="space-y-6">
-              {/* Name */}
-              <div className="space-y-3">
-                <label className="flex items-center gap-2 text-white/60 text-[10px] font-bold uppercase tracking-wider">
-                  <UserIcon className="w-3 h-3" /> Seu Nome
-                </label>
-                <input
-                  ref={nameInputRef}
-                  type="text"
-                  value={name}
-                  onChange={(e) => setName(e.target.value)}
-                  className="w-full bg-white/5 border border-white/10 rounded-xl px-4 py-3 text-white text-lg focus:outline-none focus:border-yellow-400"
-                  placeholder="Ex: Tio João"
-                />
-              </div>
-
-              {/* City Selection */}
-              <div className="space-y-3">
-                <label className="flex items-center gap-2 text-white/60 text-[10px] font-bold uppercase tracking-wider">
-                  <MapPin className="w-3 h-3" /> Sua Cidade
-                </label>
-                <div className="grid grid-cols-3 gap-2">
-                  {CITIES.map((city) => (
-                    <button
-                      key={city}
-                      type="button"
-                      onClick={() => setSelectedCity(city)}
-                      className={`py-2 px-1 rounded-lg text-[10px] font-bold uppercase tracking-wider transition-all border
-                        ${selectedCity === city 
-                          ? 'bg-yellow-500 text-black border-yellow-500 shadow-lg shadow-yellow-500/20' 
-                          : 'bg-white/5 text-white/40 border-white/10 hover:border-white/20'}`}
-                    >
-                      {city}
-                    </button>
-                  ))}
-                </div>
-              </div>
-
-              {/* Avatar Grid */}
-              <div className="space-y-3">
-                <label className="block text-white/60 text-[10px] font-bold uppercase tracking-wider">Escolha seu Avatar</label>
-                <div className="flex flex-wrap gap-2 justify-center">
-                  {ALL_AVATARS.map((opt, index) => {
-                    const isOccupied = existingUsers.some(u => u.avatar === opt);
-                    const isSelected = avatar === opt;
-                    return (
-                      <button
-                        key={`${opt}-${index}`}
-                        type="button"
-                        onClick={() => !isOccupied && setAvatar(opt)}
-                        disabled={isOccupied}
-                        className={`text-3xl p-2 rounded-xl transition-all relative ${
-                          isSelected ? 'bg-yellow-500/30 ring-2 ring-yellow-400 scale-110 z-10' : 
-                          isOccupied ? 'bg-white/5 opacity-20 cursor-not-allowed' : 
-                          'bg-white/5 hover:bg-white/10'
-                        }`}
-                      >
-                        {opt}
-                      </button>
-                    );
-                  })}
-                </div>
-              </div>
-
-              {/* PIN Modern */}
-              <div className="space-y-3 pt-4 border-t border-white/5">
-                <label className="flex items-center gap-2 text-white/60 text-[10px] font-bold uppercase tracking-wider">
-                  <Lock className="w-3 h-3" /> PIN de Acesso
-                </label>
-                <div className="flex justify-center gap-4">
-                  {pinDigits.map((digit, index) => (
-                    <input
-                      key={index}
-                      ref={pinRefs[index]}
-                      type="text"
-                      inputMode="numeric"
-                      pattern="[0-9]*"
-                      maxLength={1}
-                      value={digit}
-                      onChange={(e) => handlePinChange(index, e.target.value)}
-                      onKeyDown={(e) => handlePinKeyDown(index, e)}
-                      disabled={isVerifying}
-                      className={`w-14 h-16 bg-white/5 border-2 rounded-2xl text-white text-center text-3xl font-bold focus:outline-none transition-all
-                        ${error ? 'border-red-500/50 bg-red-500/5' : 'border-white/10 focus:border-yellow-400 focus:bg-white/10'}
-                        ${isVerifying ? 'opacity-50' : 'opacity-100'}
-                      `}
-                      placeholder="•"
-                    />
-                  ))}
-                </div>
-              </div>
-
               <button
                 type="submit"
-                disabled={!name.trim() || pinDigits.join('').length < 3 || isVerifying}
-                className="w-full bg-gradient-to-r from-yellow-500 to-yellow-600 hover:from-yellow-400 hover:to-yellow-500 disabled:opacity-50 disabled:cursor-not-allowed text-black font-extrabold py-4 rounded-xl transition-all shadow-xl shadow-yellow-500/10 uppercase tracking-widest text-sm active:scale-95"
+                className="w-full bg-gradient-to-r from-yellow-500 to-yellow-600 hover:from-yellow-400 hover:to-yellow-500 text-black font-bold py-4 rounded-2xl transition-all flex items-center justify-center gap-2"
               >
-                {isVerifying ? 'Entrando...' : 'Entrar na Mesa'}
+                Continuar
+                <ArrowRight className="w-5 h-5" />
               </button>
+
+              {existingUsers.length > 0 && (
+                <div className="pt-4 border-t border-white/10">
+                  <p className="text-white/60 text-sm mb-3 text-center">Ou entre com um perfil existente:</p>
+                  <div className="flex flex-wrap gap-2 justify-center">
+                    {existingUsers.map((user) => (
+                      <button
+                        key={user._id}
+                        onClick={() => handleSelectExistingUser(user)}
+                        className="flex items-center gap-2 px-4 py-2 rounded-xl bg-white/5 hover:bg-white/10 transition-colors"
+                      >
+                        <span className="text-2xl">{user.avatar}</span>
+                        <span className="text-white font-medium">{user.name}</span>
+                      </button>
+                    ))}
+                  </div>
+                </div>
+              )}
             </form>
           )}
 
-          {error && (
-            <p className="text-red-400 text-sm text-center font-medium animate-shake">{error}</p>
+          {/* Step 2: Name */}
+          {step === 2 && (
+            <div className="space-y-6">
+              <div className="text-center">
+                <h2 className="text-2xl font-bold text-white mb-2">Qual seu nome?</h2>
+                <p className="text-white/60">Como quer ser chamado na mesa?</p>
+              </div>
+              <div>
+                <input
+                  type="text"
+                  value={name}
+                  onChange={(e) => setName(e.target.value)}
+                  className="w-full bg-white/5 border border-white/10 rounded-2xl px-6 py-4 text-white text-xl focus:outline-none focus:border-yellow-400 focus:ring-2 focus:ring-yellow-400/30"
+                  placeholder="Digite seu nome"
+                  ref={nameInputRef}
+                />
+              </div>
+              <div className="flex gap-3">
+                <button
+                  onClick={handlePrevStep}
+                  className="flex-1 py-4 rounded-2xl bg-white/5 text-white font-bold hover:bg-white/10 transition-colors flex items-center justify-center gap-2"
+                >
+                  <ArrowLeft className="w-5 h-5" />
+                  Voltar
+                </button>
+                <button
+                  onClick={handleNextStep}
+                  disabled={!name.trim()}
+                  className="flex-1 py-4 rounded-2xl bg-gradient-to-r from-yellow-500 to-yellow-600 hover:from-yellow-400 hover:to-yellow-500 disabled:opacity-50 disabled:cursor-not-allowed text-black font-bold transition-all flex items-center justify-center gap-2"
+                >
+                  Continuar
+                  <ArrowRight className="w-5 h-5" />
+                </button>
+              </div>
+            </div>
+          )}
+
+          {/* Step 3: City */}
+          {step === 3 && (
+            <div className="space-y-6">
+              <div className="text-center">
+                <h2 className="text-2xl font-bold text-white mb-2">Onde você mora?</h2>
+                <p className="text-white/60">Escolha sua cidade</p>
+              </div>
+              <div className="flex flex-col gap-3">
+                {PREDEFINED_CITIES.map((c) => (
+                  <button
+                    key={c}
+                    type="button"
+                    onClick={() => setCity(c)}
+                    className={`w-full py-4 rounded-2xl text-white font-bold transition-all flex items-center justify-center gap-2 ${
+                      city === c ? 'bg-yellow-500/30 border-2 border-yellow-500 text-yellow-400' : 
+                      'bg-white/5 border border-white/10 hover:bg-white/10'
+                    }`}
+                  >
+                    {c}
+                    {city === c && <CheckCircle2 className="w-5 h-5" />}
+                  </button>
+                ))}
+              </div>
+              <div className="flex gap-3">
+                <button
+                  onClick={handlePrevStep}
+                  className="flex-1 py-4 rounded-2xl bg-white/5 text-white font-bold hover:bg-white/10 transition-colors flex items-center justify-center gap-2"
+                >
+                  <ArrowLeft className="w-5 h-5" />
+                  Voltar
+                </button>
+                <button
+                  onClick={handleNextStep}
+                  disabled={!city}
+                  className="flex-1 py-4 rounded-2xl bg-gradient-to-r from-yellow-500 to-yellow-600 hover:from-yellow-400 hover:to-yellow-500 disabled:opacity-50 disabled:cursor-not-allowed text-black font-bold transition-all flex items-center justify-center gap-2"
+                >
+                  Continuar
+                  <ArrowRight className="w-5 h-5" />
+                </button>
+              </div>
+            </div>
+          )}
+
+          {/* Step 4: Grito */}
+          {step === 4 && (
+            <div className="space-y-6">
+              <div className="text-center">
+                <h2 className="text-2xl font-bold text-white mb-2">Seu grito!</h2>
+                <p className="text-white/60">Escolha sua frase preferida</p>
+              </div>
+              <div className="flex flex-col gap-3">
+                {GRITOS.map((g) => (
+                  <button
+                    key={g}
+                    type="button"
+                    onClick={() => setGrito(g)}
+                    className={`w-full py-4 px-4 rounded-2xl text-white font-bold transition-all flex items-center justify-center gap-2 ${
+                      grito === g ? 'bg-yellow-500/30 border-2 border-yellow-500 text-yellow-400' : 
+                      'bg-white/5 border border-white/10 hover:bg-white/10'
+                    }`}
+                  >
+                    {g}
+                    {grito === g && <CheckCircle2 className="w-5 h-5" />}
+                  </button>
+                ))}
+              </div>
+              <div className="flex gap-3">
+                <button
+                  onClick={handlePrevStep}
+                  className="flex-1 py-4 rounded-2xl bg-white/5 text-white font-bold hover:bg-white/10 transition-colors flex items-center justify-center gap-2"
+                >
+                  <ArrowLeft className="w-5 h-5" />
+                  Voltar
+                </button>
+                <button
+                  onClick={handleNextStep}
+                  disabled={!grito}
+                  className="flex-1 py-4 rounded-2xl bg-gradient-to-r from-yellow-500 to-yellow-600 hover:from-yellow-400 hover:to-yellow-500 disabled:opacity-50 disabled:cursor-not-allowed text-black font-bold transition-all flex items-center justify-center gap-2"
+                >
+                  Continuar
+                  <ArrowRight className="w-5 h-5" />
+                </button>
+              </div>
+            </div>
+          )}
+
+          {/* Step 5: Avatar */}
+          {step === 5 && (
+            <div className="space-y-6">
+              <div className="text-center">
+                <h2 className="text-2xl font-bold text-white mb-2">Escolha seu avatar</h2>
+                <p className="text-white/60">Escolha um emoji para representar você!</p>
+              </div>
+              <div className="flex flex-wrap gap-3 justify-center">
+                {ALL_AVATARS.map((opt, index) => {
+                  const isOccupied = existingUsers.some(u => u.avatar === opt);
+                  const isSelected = avatar === opt;
+                  return (
+                    <button
+                      key={`${opt}-${index}`}
+                      type="button"
+                      onClick={() => !isOccupied && setAvatar(opt)}
+                      disabled={isOccupied}
+                      className={`w-16 h-16 text-3xl rounded-2xl flex items-center justify-center transition-all relative ${
+                        isSelected ? 'bg-yellow-500/30 ring-4 ring-yellow-400 scale-110' : 
+                        isOccupied ? 'bg-white/5 opacity-30 cursor-not-allowed' : 
+                        'bg-white/5 hover:bg-white/10 hover:scale-105'
+                      }`}
+                    >
+                      {opt}
+                      {isOccupied && (
+                        <span className="absolute inset-0 flex items-center justify-center text-[10px] text-white/60 font-bold">
+                          Ocupado
+                        </span>
+                      )}
+                    </button>
+                  );
+                })}
+              </div>
+              <div className="flex gap-3">
+                <button
+                  onClick={handlePrevStep}
+                  className="flex-1 py-4 rounded-2xl bg-white/5 text-white font-bold hover:bg-white/10 transition-colors flex items-center justify-center gap-2"
+                >
+                  <ArrowLeft className="w-5 h-5" />
+                  Voltar
+                </button>
+                <button
+                  onClick={handleComplete}
+                  disabled={!avatar}
+                  className="flex-1 py-4 rounded-2xl bg-gradient-to-r from-green-500 to-green-600 hover:from-green-400 hover:to-green-500 disabled:opacity-50 disabled:cursor-not-allowed text-black font-bold transition-all flex items-center justify-center gap-2"
+                >
+                  Entrar na mesa
+                  <CheckCircle2 className="w-5 h-5" />
+                </button>
+              </div>
+            </div>
           )}
         </div>
       </div>
