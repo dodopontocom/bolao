@@ -49,6 +49,12 @@ export default function MatchCard({ match, userName, userId, currentUser, result
           setSaved(true);
         }
         setBets(betsData);
+
+        const myBet = betsData.find((b: any) => (b.userId?._id === userId || b.userId === userId));
+        if (myBet) {
+          setBetAmount(myBet.amount.toString());
+          setBetOutcome(myBet.outcome);
+        }
       } catch (err) {
         setError('Falha ao carregar dados');
       } finally {
@@ -94,7 +100,12 @@ export default function MatchCard({ match, userName, userId, currentUser, result
   const handlePlaceBet = async () => {
     const amount = parseInt(betAmount);
     if (isNaN(amount) || amount <= 0) return;
-    if (!currentUser || currentUser.balance < amount) return;
+    
+    const currentBetAmount = userBet?.amount || 0;
+    if (!currentUser || (currentUser.balance + currentBetAmount) < amount) {
+      setError('Saldo insuficiente');
+      return;
+    }
 
     setBetting(true);
     setError(null);
@@ -111,16 +122,21 @@ export default function MatchCard({ match, userName, userId, currentUser, result
           odd,
         }),
       });
-      const newBet = await res.json();
+
+      const data = await res.json();
       
+      if (!res.ok) {
+        throw new Error(data.error || 'Falha ao processar aposta');
+      }
+
       if (userBet) {
-        setBets(prev => prev.map(b => (b.userId?._id === userId || b.userId === userId) ? newBet : b));
+        setBets(prev => prev.map(b => (b.userId?._id === userId || b.userId === userId) ? data : b));
       } else {
-        setBets(prev => [...prev, newBet]);
+        setBets(prev => [...prev, data]);
       }
       setShowBetting(false);
-    } catch (err) {
-      setError('Falha ao fazer aposta');
+    } catch (err: any) {
+      setError(err.message || 'Falha ao fazer aposta');
     } finally {
       setBetting(false);
     }
@@ -294,6 +310,23 @@ export default function MatchCard({ match, userName, userId, currentUser, result
         </div>
       </div>
 
+      {userBet && !showBetting && (
+        <div className="mt-3 p-3 bg-white/5 border border-white/10 rounded-xl flex items-center justify-between animate-fade-in">
+          <div className="flex flex-col">
+            <span className="text-[10px] text-white/40 uppercase font-bold tracking-wider">Sua Aposta</span>
+            <span className="text-sm font-bold text-white">
+              {userBet.outcome === 'home' ? match.team1 : userBet.outcome === 'draw' ? 'Empate' : match.team2}
+            </span>
+          </div>
+          <div className="flex flex-col items-end">
+            <span className="text-[10px] text-white/40 uppercase font-bold tracking-wider">Retorno</span>
+            <span className="text-sm font-bold text-green-400">
+              N$ {(userBet.amount * userBet.odd).toLocaleString()}
+            </span>
+          </div>
+        </div>
+      )}
+
       {showBetting && !isClosed && !isFinished && (
         <div className="mt-4 pt-4 border-t border-white/10 space-y-3">
           <div className="flex gap-2">
@@ -339,7 +372,7 @@ export default function MatchCard({ match, userName, userId, currentUser, result
           </div>
           {userBet && (
             <div className="text-center text-white/40 text-[10px]">
-              Aposta atual: N${userBet.amount} em {userBet.outcome} ({userBet.odd}x)
+              Aposta atual: N${userBet.amount.toLocaleString()} em {userBet.outcome === 'home' ? match.team1 : userBet.outcome === 'draw' ? 'Empate' : match.team2} ({userBet.odd}x) → <span className="text-green-400 font-bold">Retorno: N${(userBet.amount * userBet.odd).toLocaleString()}</span>
             </div>
           )}
         </div>

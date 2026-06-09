@@ -2,7 +2,7 @@
 
 import { useState, useEffect, useMemo } from 'react';
 import { useRouter } from 'next/navigation';
-import { ArrowLeft, Edit2, Save, Trophy, TrendingUp, TrendingDown, DollarSign, Home, Utensils } from 'lucide-react';
+import { ArrowLeft, Edit2, Save, Trophy, TrendingUp, TrendingDown, DollarSign, Home, Utensils, RefreshCw } from 'lucide-react';
 import { IUser } from '@/models/User';
 import { IBet } from '@/models/Bet';
 import { IPrediction } from '@/models/Prediction';
@@ -40,6 +40,7 @@ export default function ProfilePage() {
   const [editCity, setEditCity] = useState('');
   const [editJargon, setEditJargon] = useState('');
   const [saving, setSaving] = useState(false);
+  const [refreshing, setRefreshing] = useState(false);
   
   // Get 5 random available avatars (including current user's)
   const getRandomAvailableAvatars = useMemo(() => {
@@ -131,6 +132,13 @@ export default function ProfilePage() {
     } finally {
       setSaving(false);
     }
+  };
+
+  const handleRefresh = async () => {
+    if (!currentUser) return;
+    setRefreshing(true);
+    await loadData(currentUser._id);
+    setRefreshing(false);
   };
 
   const totalSpent = bets.reduce((sum, bet) => sum + bet.amount, 0);
@@ -310,10 +318,20 @@ export default function ProfilePage() {
 
         {/* Activity List */}
         <div className="card p-6">
-          <h3 className="text-lg font-bold text-white mb-4 flex items-center gap-2">
-            <Trophy className="w-5 h-5" />
-            Minhas Apostas & Palpites
-          </h3>
+          <div className="flex items-center justify-between mb-4">
+            <h3 className="text-lg font-bold text-white flex items-center gap-2">
+              <Trophy className="w-5 h-5" />
+              Minhas Apostas & Palpites
+            </h3>
+            <button
+              onClick={handleRefresh}
+              disabled={refreshing}
+              className={`p-2 hover:bg-white/10 rounded-full text-white transition-all ${refreshing ? 'animate-spin opacity-50' : ''}`}
+              title="Atualizar tudo"
+            >
+              <RefreshCw className="w-5 h-5" />
+            </button>
+          </div>
           {bets.length === 0 && predictions.length === 0 ? (
             <p className="text-white/60 text-center py-4">Nenhuma atividade ainda</p>
           ) : (
@@ -355,9 +373,14 @@ export default function ProfilePage() {
                       <div className="flex items-center justify-between mt-2">
                         <div className="text-sm">
                           {isBet ? (
-                            <span className="text-white/60">
-                              Palpite: <span className="text-white">{item.outcome === 'home' ? match.team1 : item.outcome === 'draw' ? 'Empate' : match.team2}</span>
-                            </span>
+                            <div className="flex flex-col">
+                              <span className="text-white/60">
+                                Palpite: <span className="text-white">{item.outcome === 'home' ? match.team1 : item.outcome === 'draw' ? 'Empate' : match.team2}</span>
+                              </span>
+                              <span className="text-white/40 text-xs">
+                                N$ {item.amount.toLocaleString()} ({item.odd}x)
+                              </span>
+                            </div>
                           ) : (
                             <span className="text-white/60">
                               Placar: <span className="text-white">{item.homeGoals} x {item.awayGoals}</span>
@@ -367,7 +390,14 @@ export default function ProfilePage() {
                         
                         <div className="text-right">
                           {!isFinished ? (
-                            <span className="text-yellow-500/80 text-xs font-medium">Aguardando...</span>
+                            <div className="flex flex-col items-end">
+                              <span className="text-yellow-500/80 text-xs font-medium">Aguardando...</span>
+                              {isBet && (
+                                <span className="text-green-400/80 text-[10px] font-bold">
+                                  Retorno: N$ {(item.amount * item.odd).toLocaleString()}
+                                </span>
+                              )}
+                            </div>
                           ) : (
                             <div>
                               {isBet ? (
