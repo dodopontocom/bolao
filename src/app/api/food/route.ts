@@ -3,12 +3,21 @@ import dbConnect from '@/lib/db';
 import Food from '@/models/Food';
 import User from '@/models/User';
 
+export const dynamic = 'force-dynamic';
+
 const FOOD_EMOJIS = ['🍕', '🍔', '🌭', '🍟', '🌮', '🍿', '🍩', '🍪', '🍫', '🍬', '🍭', '🍰', '🧁', '🎂', '🍹', '🍺', '🍻', '🥂', '🍷', '☕'];
 
 export async function GET() {
   await dbConnect();
+  // Delete expired foods
   await Food.deleteMany({ expiresAt: { $lt: new Date() } });
-  const foods = await Food.find({ collectedBy: null });
+  
+  const foods = await Food.find({ 
+    $or: [
+      { collectedBy: null },
+      { collectedBy: { $exists: false } }
+    ]
+  });
   return NextResponse.json(foods);
 }
 

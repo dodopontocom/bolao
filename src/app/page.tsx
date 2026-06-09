@@ -42,22 +42,31 @@ export default function Home() {
   const refreshData = useCallback(async () => {
     try {
       const [usersRes, matchesRes, resultsRes, foodsRes, chatsRes] = await Promise.all([
-        fetch('/api/users'),
-        fetch('/api/matches'),
-        fetch('/api/results'),
-        fetch('/api/food'),
-        fetch('/api/chat'),
+        fetch('/api/users', { cache: 'no-store' }),
+        fetch('/api/matches', { cache: 'no-store' }),
+        fetch('/api/results', { cache: 'no-store' }),
+        fetch('/api/food', { cache: 'no-store' }),
+        fetch('/api/chat', { cache: 'no-store' }),
       ]);
       const usersData = await usersRes.json();
+      const matchesData = await matchesRes.json();
+      const resultsData = await resultsRes.json();
+      const foodsData = await foodsRes.json();
+      const chatsData = await chatsRes.json();
+
       setUsers(usersData);
-      setMatches(await matchesRes.json());
-      setResults(await resultsRes.json());
-      setFoods(await foodsRes.json());
-      setChats(await chatsRes.json());
+      setMatches(matchesData);
+      setResults(resultsData);
+      setFoods(foodsData);
+      setChats(chatsData);
 
       if (currentUser) {
         const updatedSelf = usersData.find((u: IUser) => u._id === currentUser._id);
-        if (updatedSelf) {
+        if (updatedSelf && (
+          updatedSelf.balance !== currentUser.balance || 
+          updatedSelf.foodPoints !== currentUser.foodPoints ||
+          updatedSelf.lastClaimedMatchId !== currentUser.lastClaimedMatchId
+        )) {
           setCurrentUser(updatedSelf);
         }
         await fetch(`/api/users/${currentUser._id}/ping`, { method: 'POST' });
@@ -73,26 +82,28 @@ export default function Home() {
       const interval = setInterval(refreshData, 3000);
       return () => clearInterval(interval);
     }
-  }, [currentUser, refreshData]);
-
-  const onlineUsers = users.filter(u => new Date(u.lastSeen) > new Date(Date.now() - 60000));
+  }, [currentUser?._id, refreshData]);
 
   // Spawn food randomly - Scales with online users
   useEffect(() => {
-    if (!currentUser) return;
+    const userId = currentUser?._id;
+    if (!userId) return;
 
+    console.log('Food spawn system initialized');
     let timeoutId: NodeJS.Timeout;
     
     const spawnFood = () => {
-      // Calculate delay based on current online users
-      // Use the 'users' state directly from the outer scope is fine if we use recursive timeout
-      // but to be safer and avoid dependency loops, we calculate count here
-      const onlineCount = users.filter(u => new Date(u.lastSeen) > new Date(Date.now() - 60000)).length;
-      const delay = Math.max(5000, 30000 - (onlineCount * 5000));
+      // Get current online count from the state at the time of execution
+      // Use a shorter base time for testing and better UX
+      const delay = Math.floor(Math.random() * 10000) + 5000; // 5-15 seconds random
 
       timeoutId = setTimeout(async () => {
         try {
-          const res = await fetch('/api/food', { method: 'POST' });
+          const res = await fetch('/api/food', { 
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ spawnedBy: userId }) 
+          });
           if (res.ok) {
             const newFood = await res.json();
             setFoods(prev => [...prev, newFood]);
@@ -100,14 +111,14 @@ export default function Home() {
         } catch (error) {
           console.error('Failed to spawn food:', error);
         } finally {
-          spawnFood(); // Schedule next
+          spawnFood();
         }
       }, delay);
     };
     
     spawnFood();
     return () => clearTimeout(timeoutId);
-  }, [currentUser]); // Only depend on currentUser login/logout
+  }, [currentUser?._id]); // Only reset if user changes/logouts
 
   const handleSendMessage = async (message: string) => {
     if (!currentUser) return;
