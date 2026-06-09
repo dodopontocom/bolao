@@ -66,9 +66,14 @@ export default function MatchList({ matches, userName, userId, currentUser, resu
             >
               <ChevronLeft className="w-5 h-5 text-white" />
             </button>
-            <span className="text-white font-semibold flex-1 text-center">
-              {currentWeek && formatWeekLabel(currentWeek.weekStart)}
-            </span>
+            <div className="flex flex-col flex-1 text-center">
+              <span className="text-white font-semibold">
+                Semana {currentWeekIndex + 1}
+              </span>
+              <span className="text-white/60 text-xs">
+                {currentWeek && formatWeekLabel(currentWeek.weekStart)}
+              </span>
+            </div>
             <button
               onClick={() => setCurrentWeekIndex(i => Math.min(weeks.length - 1, i + 1))}
               disabled={currentWeekIndex === weeks.length - 1}

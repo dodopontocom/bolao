@@ -6,11 +6,13 @@ import { IUser } from '@/models/User';
 import { Match } from '@/data/matches';
 import { IResult } from '@/models/Result';
 import { IFood } from '@/models/Food';
+import { getFlag } from '@/data/flags';
 import { LogOut, Settings, Trophy, List, BarChart3, Shield, User } from 'lucide-react';
 import MatchCard from '@/components/MatchCard';
 import AdminPanel from '@/components/AdminPanel';
 import Ranking from '@/components/Ranking';
 import MatchList from '@/components/MatchList';
+import Countdown from '@/components/Countdown';
 import { getMatchStatus } from '@/lib/services/matchService';
 
 interface RoundTableProps {
@@ -103,6 +105,13 @@ export default function RoundTable({
       <main className="flex-1 max-w-lg mx-auto w-full px-4 py-4 pb-24">
         {activeTab === 'table' && (
           <div className="animate-fade-in space-y-6">
+            {/* Online Legend */}
+            <div className="flex items-center justify-center gap-3">
+              <div className="flex items-center gap-2">
+                <div className="w-4 h-4 bg-green-500 rounded-full animate-pulse"></div>
+                <span className="text-white/80 text-xs font-medium">Online agora</span>
+              </div>
+            </div>
             <div className="relative aspect-square">
               <div className="absolute inset-0 rounded-full bg-gradient-to-br from-green-800 to-green-950 border-4 border-yellow-600 shadow-2xl">
                 <div className="absolute inset-4 rounded-full border border-green-600/30"></div>
@@ -114,7 +123,7 @@ export default function RoundTable({
                   return (
                     <div
                       key={user._id}
-                      className={`absolute transform -translate-x-1/2 -translate-y-1/2 ${isOnline ? '' : 'opacity-40'}`}
+                      className={`absolute transform -translate-x-1/2 -translate-y-1/2 flex flex-col items-center gap-1 ${isOnline ? '' : 'opacity-40'}`}
                       style={{ left: `${pos.x}%`, top: `${pos.y}%` }}
                     >
                       <div className="relative">
@@ -125,6 +134,7 @@ export default function RoundTable({
                           <div className="absolute -bottom-1 -right-1 w-4 h-4 bg-green-500 rounded-full border-2 border-[#050816] animate-pulse"></div>
                         )}
                       </div>
+                      <span className="text-white/80 text-xs font-medium text-center w-20 truncate">{user.name}</span>
                     </div>
                   );
                 })}
@@ -145,14 +155,16 @@ export default function RoundTable({
                     <div className="card p-4 text-center">
                       <p className="text-white/50 text-xs mb-2">Próximo jogo</p>
                       <div className="flex items-center justify-center gap-2 mb-2">
-                        <span className="text-2xl">{nextMatch.team1}</span>
+                        <span className="text-2xl">{getFlag(nextMatch.team1)}</span>
                         <span className="text-white/50">vs</span>
-                        <span className="text-2xl">{nextMatch.team2}</span>
+                        <span className="text-2xl">{getFlag(nextMatch.team2)}</span>
                       </div>
-                      {results[nextMatch.id] && (
+                      {results[nextMatch.id] ? (
                         <p className="text-yellow-400 font-bold text-xl">
                           {results[nextMatch.id].homeGoals} - {results[nextMatch.id].awayGoals}
                         </p>
+                      ) : (
+                        <Countdown targetDate={nextMatch.date} matchTime={nextMatch.time} />
                       )}
                     </div>
                   )}

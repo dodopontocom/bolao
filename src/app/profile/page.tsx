@@ -1,18 +1,16 @@
 'use client';
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useMemo } from 'react';
 import { useRouter } from 'next/navigation';
 import { ArrowLeft, Edit2, Save, Trophy, TrendingUp, TrendingDown, DollarSign } from 'lucide-react';
 import { IUser } from '@/models/User';
 import { IBet } from '@/models/Bet';
-import { Match, getMatchStatus } from '@/data/matches';
+import { Match } from '@/data/matches';
 import { getFlag } from '@/data/flags';
-import { calculatePredictionPoints } from '@/lib/services/matchService';
 import LoginScreen from '@/components/LoginScreen';
+import { ALL_AVATARS } from '@/data/avatars';
 
-const EMOJIS = ['😀', '😎', '🤩', '🥳', '🎉', '⚽', '🏆', '🎮', '🎯', '🎲', '🎸', '🎨'];
-
-interface ProfilePage = () => {
+export default function ProfilePage() {
   const router = useRouter();
   const [currentUser, setCurrentUser] = useState<IUser | null>(null);
   const [users, setUsers] = useState<IUser[]>([]);
@@ -24,6 +22,27 @@ interface ProfilePage = () => {
   const [editName, setEditName] = useState('');
   const [editAvatar, setEditAvatar] = useState('');
   const [saving, setSaving] = useState(false);
+  
+  // Get 5 random available avatars (including current user's)
+  const getRandomAvailableAvatars = useMemo(() => {
+    if (!currentUser || !users) return [];
+    
+    const usedAvatars = new Set(users.map(u => u.avatar));
+    const availableAvatars = ALL_AVATARS.filter(a => !usedAvatars.has(a) || a === currentUser.avatar);
+    
+    // Remove duplicates (just in case)
+    const uniqueAvailable = [...new Set(availableAvatars)];
+    
+    // Shuffle and pick 5
+    const shuffled = [...uniqueAvailable].sort(() => Math.random() - 0.5);
+    // Ensure current user's avatar is always present
+    if (!shuffled.includes(currentUser.avatar)) {
+      shuffled.unshift(currentUser.avatar);
+    }
+    // Remove duplicates one more time
+    const finalList = [...new Set(shuffled)];
+    return finalList.slice(0, 5);
+  }, [currentUser, users]);
 
   useEffect(() => {
     const savedUserId = localStorage.getItem('userId');
@@ -125,9 +144,9 @@ interface ProfilePage = () => {
               <div className="flex flex-col items-center gap-4">
               <div className="text-5xl">{editAvatar}</div>
               <div className="flex gap-2 flex-wrap justify-center">
-                {EMOJIS.map(emoji => (
+                {getRandomAvailableAvatars.map((emoji, index) => (
                   <button
-                    key={emoji}
+                    key={`${emoji}-${index}`}
                     onClick={() => setEditAvatar(emoji)}
                     className={`text-2xl p-2 rounded-lg ${editAvatar === emoji ? 'bg-yellow-500/30 border border-yellow-500' : 'hover:bg-white/10'}`}
                   >
@@ -211,7 +230,6 @@ interface ProfilePage = () => {
             bets.map(bet => {
               const match = matches.find(m => m.id === bet.matchId);
               const result = results[bet.matchId];
-              const status = match ? getMatchStatus(match) : 'closed';
               return (
                 <div key={bet._id} className="card p-4">
                   {match && (
@@ -256,6 +274,4 @@ interface ProfilePage = () => {
       </main>
     </div>
   );
-};
-
-export default ProfilePage;
+}
