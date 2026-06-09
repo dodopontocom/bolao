@@ -277,7 +277,7 @@ export default function RoundTable({
               </div>
 
               {/* Food on the Table */}
-              <div className="absolute inset-0 z-15">
+              <div className="absolute inset-0 z-20">
                 {foods.map((food) => (
                   <button
                     key={food._id}
