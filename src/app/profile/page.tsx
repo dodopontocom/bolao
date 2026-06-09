@@ -2,7 +2,7 @@
 
 import { useState, useEffect, useMemo } from 'react';
 import { useRouter } from 'next/navigation';
-import { ArrowLeft, Edit2, Save, Trophy, TrendingUp, TrendingDown, DollarSign, Home } from 'lucide-react';
+import { ArrowLeft, Edit2, Save, Trophy, TrendingUp, TrendingDown, DollarSign, Home, Utensils } from 'lucide-react';
 import { IUser } from '@/models/User';
 import { IBet } from '@/models/Bet';
 import { IPrediction } from '@/models/Prediction';
@@ -10,7 +10,8 @@ import { Match } from '@/data/matches';
 import { getFlag } from '@/data/flags';
 import LoginScreen from '@/components/LoginScreen';
 import { ALL_AVATARS } from '@/data/avatars';
-import { calculatePredictionPoints } from '@/lib/services/matchService';
+import { calculatePredictionReward, getMatchStatus } from '@/lib/services/matchService';
+import MatchCard from '@/components/MatchCard';
 
 export default function ProfilePage() {
   const router = useRouter();
@@ -22,6 +23,7 @@ export default function ProfilePage() {
   const [results, setResults] = useState<any>({});
   const [loading, setLoading] = useState(true);
   const [isEditing, setIsEditing] = useState(false);
+  const [editingMatchId, setEditingMatchId] = useState<string | null>(null);
   const [editName, setEditName] = useState('');
   const [editAvatar, setEditAvatar] = useState('');
   const [saving, setSaving] = useState(false);
@@ -222,6 +224,19 @@ export default function ProfilePage() {
         </div>
 
         {/* Stats */}
+        <div className="grid grid-cols-2 gap-3">
+          <div className="card p-4 text-center">
+            <DollarSign className="w-6 h-6 text-white/60 mx-auto mb-1" />
+            <p className="text-xs text-white/40 mb-1">Saldo</p>
+            <p className="text-lg font-bold text-yellow-400">N${currentUser.balance.toLocaleString()}</p>
+          </div>
+          <div className="card p-4 text-center">
+            <Utensils className="w-6 h-6 text-white/60 mx-auto mb-1" />
+            <p className="text-xs text-white/40 mb-1">Fominha Level</p>
+            <p className="text-lg font-bold text-green-400">{currentUser.foodPoints}</p>
+          </div>
+        </div>
+
         <div className="grid grid-cols-3 gap-3">
           <div className="card p-4 text-center">
             <DollarSign className="w-6 h-6 text-white/60 mx-auto mb-1" />
@@ -254,6 +269,31 @@ export default function ProfilePage() {
               const match = matches.find(m => m.id === pred.matchId);
               const result = results[pred.matchId];
               const reward = result ? calculatePredictionReward(pred, result) : null;
+              const status = match ? getMatchStatus(match) : 'closed';
+              const isEditable = status === 'open';
+
+              if (editingMatchId === pred.matchId && match) {
+                return (
+                  <div key={pred._id} className="space-y-2">
+                    <MatchCard
+                      match={match}
+                      userName={currentUser.name}
+                      userId={currentUser._id}
+                      currentUser={currentUser}
+                      result={result}
+                    />
+                    <button
+                      onClick={() => {
+                        setEditingMatchId(null);
+                        loadData(currentUser._id);
+                      }}
+                      className="w-full py-2 bg-white/5 border border-white/10 rounded-xl text-white text-xs font-bold hover:bg-white/10"
+                    >
+                      Fechar Edição
+                    </button>
+                  </div>
+                );
+              }
               
               return (
                 <div key={pred._id} className="card p-4">
@@ -291,7 +331,18 @@ export default function ProfilePage() {
                           </>
                         )}
                         {!result && (
-                          <span className="text-yellow-400/50 text-[10px] font-bold">AGUARDANDO</span>
+                          <div className="flex flex-col items-end gap-2">
+                            <span className="text-yellow-400/50 text-[10px] font-bold">AGUARDANDO</span>
+                            {isEditable && (
+                              <button
+                                onClick={() => setEditingMatchId(pred.matchId)}
+                                className="flex items-center gap-1 px-2 py-1 rounded-md bg-white/10 hover:bg-white/20 text-[10px] text-white font-bold transition-colors"
+                              >
+                                <Edit2 className="w-3 h-3" />
+                                Editar
+                              </button>
+                            )}
+                          </div>
                         )}
                       </div>
                     </div>
@@ -313,6 +364,32 @@ export default function ProfilePage() {
             bets.map(bet => {
               const match = matches.find(m => m.id === bet.matchId);
               const result = results[bet.matchId];
+              const status = match ? getMatchStatus(match) : 'closed';
+              const isEditable = status === 'open';
+
+              if (editingMatchId === bet.matchId && match) {
+                return (
+                  <div key={bet._id} className="space-y-2">
+                    <MatchCard
+                      match={match}
+                      userName={currentUser.name}
+                      userId={currentUser._id}
+                      currentUser={currentUser}
+                      result={result}
+                    />
+                    <button
+                      onClick={() => {
+                        setEditingMatchId(null);
+                        loadData(currentUser._id);
+                      }}
+                      className="w-full py-2 bg-white/5 border border-white/10 rounded-xl text-white text-xs font-bold hover:bg-white/10"
+                    >
+                      Fechar Edição
+                    </button>
+                  </div>
+                );
+              }
+
               return (
                 <div key={bet._id} className="card p-4">
                   {match && (
@@ -341,7 +418,18 @@ export default function ProfilePage() {
                     </div>
                     <div className="flex items-center gap-2">
                       {!bet.settled ? (
-                        <span className="text-yellow-400 text-xs font-bold">PENDENTE</span>
+                        <div className="flex items-center gap-3">
+                          <span className="text-yellow-400 text-xs font-bold">PENDENTE</span>
+                          {isEditable && (
+                            <button
+                              onClick={() => setEditingMatchId(bet.matchId)}
+                              className="flex items-center gap-1 px-2 py-1 rounded-md bg-white/10 hover:bg-white/20 text-[10px] text-white font-bold transition-colors"
+                            >
+                              <Edit2 className="w-3 h-3" />
+                              Editar
+                            </button>
+                          )}
+                        </div>
                       ) : bet.won ? (
                         <span className="text-green-400 text-xs font-bold">GANHOU +N${bet.payout.toLocaleString()}</span>
                       ) : (

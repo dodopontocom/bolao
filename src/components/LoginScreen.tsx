@@ -1,6 +1,6 @@
 'use client';
 
-import { useState } from 'react';
+import { useState, useRef, useEffect } from 'react';
 import { IUser } from '@/models/User';
 import { ALL_AVATARS } from '@/data/avatars';
 
@@ -11,10 +11,17 @@ interface LoginScreenProps {
 
 export default function LoginScreen({ onLogin, existingUsers }: LoginScreenProps) {
   const [step, setStep] = useState<'pin' | 'name' | 'existing'>('pin');
-  const [pin, setPin] = useState('');
+  const [pinDigits, setPinDigits] = useState(['', '', '']);
   const [name, setName] = useState('');
   const [error, setError] = useState('');
+  const [isVerifying, setIsVerifying] = useState(false);
   
+  const inputRefs = [
+    useRef<HTMLInputElement>(null),
+    useRef<HTMLInputElement>(null),
+    useRef<HTMLInputElement>(null),
+  ];
+
   // Get first available avatar
   const getFirstAvailableAvatar = () => {
     const usedAvatars = new Set(existingUsers.map(u => u.avatar));
@@ -24,8 +31,8 @@ export default function LoginScreen({ onLogin, existingUsers }: LoginScreenProps
   const [avatar, setAvatar] = useState(getFirstAvailableAvatar());
   const [city, setCity] = useState<string | undefined>();
 
-  const handlePinSubmit = async (e: React.FormEvent) => {
-    e.preventDefault();
+  const verifyPin = async (pin: string) => {
+    setIsVerifying(true);
     setError('');
 
     try {
@@ -48,9 +55,44 @@ export default function LoginScreen({ onLogin, existingUsers }: LoginScreenProps
         }
       } else {
         setError(data.error || 'PIN inválido');
+        setPinDigits(['', '', '']);
+        inputRefs[0].current?.focus();
       }
     } catch (err) {
       setError('Erro ao verificar PIN');
+      setPinDigits(['', '', '']);
+      inputRefs[0].current?.focus();
+    } finally {
+      setIsVerifying(false);
+    }
+  };
+
+  const handlePinChange = (index: number, value: string) => {
+    // Only numbers
+    const cleanValue = value.replace(/[^0-9]/g, '').slice(-1);
+    if (!cleanValue && value !== '') return;
+
+    const newDigits = [...pinDigits];
+    newDigits[index] = cleanValue;
+    setPinDigits(newDigits);
+
+    if (cleanValue) {
+      // Focus next
+      if (index < 2) {
+        inputRefs[index + 1].current?.focus();
+      } else {
+        // Last digit, verify!
+        const fullPin = newDigits.join('');
+        if (fullPin.length === 3) {
+          verifyPin(fullPin);
+        }
+      }
+    }
+  };
+
+  const handleKeyDown = (index: number, e: React.KeyboardEvent<HTMLInputElement>) => {
+    if (e.key === 'Backspace' && !pinDigits[index] && index > 0) {
+      inputRefs[index - 1].current?.focus();
     }
   };
 
@@ -99,26 +141,42 @@ export default function LoginScreen({ onLogin, existingUsers }: LoginScreenProps
 
         <div className="card p-6">
           {step === 'pin' && (
-            <form onSubmit={handlePinSubmit} className="space-y-4">
-              <div>
-                <label className="block text-white/80 mb-2 text-sm">Digite o PIN de acesso</label>
-                <input
-                  type="text"
-                  maxLength={3}
-                  value={pin}
-                  onChange={(e) => setPin(e.target.value)}
-                  className="w-full bg-white/5 border border-white/10 rounded-xl px-4 py-3 text-white text-center text-2xl tracking-widest focus:outline-none focus:border-yellow-400"
-                  placeholder="•••"
-                />
+            <div className="space-y-6">
+              <div className="text-center">
+                <label className="block text-white/80 mb-4 text-sm font-medium">Digite o PIN de acesso</label>
+                <div className="flex justify-center gap-4">
+                  {pinDigits.map((digit, index) => (
+                    <input
+                      key={index}
+                      ref={inputRefs[index]}
+                      type="text"
+                      inputMode="numeric"
+                      pattern="[0-9]*"
+                      maxLength={1}
+                      value={digit}
+                      onChange={(e) => handlePinChange(index, e.target.value)}
+                      onKeyDown={(e) => handleKeyDown(index, e)}
+                      disabled={isVerifying}
+                      className={`w-14 h-16 bg-white/5 border-2 rounded-2xl text-white text-center text-3xl font-bold focus:outline-none transition-all
+                        ${error ? 'border-red-500/50 bg-red-500/5' : 'border-white/10 focus:border-yellow-400 focus:bg-white/10'}
+                        ${isVerifying ? 'opacity-50' : 'opacity-100'}
+                      `}
+                      placeholder="•"
+                    />
+                  ))}
+                </div>
               </div>
-              {error && <p className="text-red-400 text-sm">{error}</p>}
-              <button
-                type="submit"
-                className="w-full bg-yellow-500 hover:bg-yellow-400 text-black font-bold py-3 rounded-xl transition-colors"
-              >
-                Entrar
-              </button>
-            </form>
+              
+              {error && (
+                <p className="text-red-400 text-sm text-center animate-shake">{error}</p>
+              )}
+              
+              <div className="pt-2">
+                <p className="text-white/20 text-[10px] text-center uppercase tracking-widest font-bold">
+                  {isVerifying ? 'Verificando...' : 'Acesso restrito à família'}
+                </p>
+              </div>
+            </div>
           )}
 
           {step === 'existing' && (

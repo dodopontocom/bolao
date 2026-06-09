@@ -3,21 +3,14 @@
 import { useState, useEffect } from 'react';
 
 interface CountdownProps {
-  targetDate: string;
-  matchTime: string;
+  matchDate: number; // UTC timestamp
 }
 
-export default function Countdown({ targetDate, matchTime }: CountdownProps) {
+export default function Countdown({ matchDate }: CountdownProps) {
   const [timeLeft, setTimeLeft] = useState('');
 
   useEffect(() => {
-    const utcOffset = matchTime.match(/UTC([+-]?\d+)/);
-    const offset = utcOffset ? parseInt(utcOffset[1]) : 0;
-    const cleanTime = matchTime.replace(/\s*UTC[+-]?\d+/, '').trim();
-    const [hours, minutes] = cleanTime.split(':').map(Number);
-    const matchDate = new Date(`${targetDate}T00:00:00Z`);
-    matchDate.setUTCHours(hours - offset, minutes || 0, 0, 0);
-    const closeTime = new Date(matchDate.getTime() - 2 * 60 * 1000);
+    const closeTime = new Date(matchDate - 2 * 60 * 1000);
 
     const tick = () => {
       const now = Date.now();
@@ -45,7 +38,7 @@ export default function Countdown({ targetDate, matchTime }: CountdownProps) {
     tick();
     const interval = setInterval(tick, 1000);
     return () => clearInterval(interval);
-  }, [targetDate, matchTime]);
+  }, [matchDate]);
 
   const isClosed = timeLeft === 'ENCERRADO';
 

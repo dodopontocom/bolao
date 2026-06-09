@@ -126,9 +126,19 @@ export default function MatchCard({ match, userName, userId, currentUser, result
     }
   };
 
-  const formatDate = (date: string) => {
-    const d = new Date(date + 'T00:00:00');
-    return d.toLocaleDateString('pt-BR', { day: '2-digit', month: '2-digit' });
+  const formatMatchTime = (timestamp: number) => {
+    return new Date(timestamp).toLocaleTimeString('pt-BR', { 
+      hour: '2-digit', 
+      minute: '2-digit',
+      hour12: false 
+    });
+  };
+
+  const formatDate = (timestamp: number) => {
+    return new Date(timestamp).toLocaleDateString('pt-BR', { 
+      day: '2-digit', 
+      month: '2-digit' 
+    });
   };
 
   const getRewardBadge = () => {
@@ -200,21 +210,31 @@ export default function MatchCard({ match, userName, userId, currentUser, result
           ) : (
             <>
               <input
-                type="number"
-                min="0"
-                max="99"
+                type="text"
+                inputMode="numeric"
+                pattern="[0-9]*"
+                maxLength={2}
                 value={score1}
-                onChange={(e) => { setScore1(e.target.value); setSaved(false); }}
+                onChange={(e) => { 
+                  const val = e.target.value.replace(/[^0-9]/g, '');
+                  setScore1(val); 
+                  setSaved(false); 
+                }}
                 className="w-16 h-16 bg-white/5 border border-white/10 rounded-xl text-white text-center text-2xl font-bold focus:outline-none focus:border-yellow-400"
                 placeholder="-"
               />
               <span className="text-xl text-white/20">x</span>
               <input
-                type="number"
-                min="0"
-                max="99"
+                type="text"
+                inputMode="numeric"
+                pattern="[0-9]*"
+                maxLength={2}
                 value={score2}
-                onChange={(e) => { setScore2(e.target.value); setSaved(false); }}
+                onChange={(e) => { 
+                  const val = e.target.value.replace(/[^0-9]/g, '');
+                  setScore2(val); 
+                  setSaved(false); 
+                }}
                 className="w-16 h-16 bg-white/5 border border-white/10 rounded-xl text-white text-center text-2xl font-bold focus:outline-none focus:border-yellow-400"
                 placeholder="-"
               />
@@ -233,9 +253,9 @@ export default function MatchCard({ match, userName, userId, currentUser, result
         <div className="flex items-center gap-3 text-xs text-white/40">
           <span className="flex items-center gap-1">
             <Clock className="w-3 h-3" />
-            {formatDate(match.date)} {match.time.replace(/UTC[+-]?\d+/, '').trim()}
+            {formatDate(match.matchDate)} {formatMatchTime(match.matchDate)}
           </span>
-          {!isFinished && <Countdown targetDate={match.date} matchTime={match.time} />}
+          {!isFinished && <Countdown matchDate={match.matchDate} />}
         </div>
 
         <div className="flex items-center gap-2">
@@ -298,9 +318,14 @@ export default function MatchCard({ match, userName, userId, currentUser, result
           </div>
           <div className="flex gap-2">
             <input
-              type="number"
+              type="text"
+              inputMode="numeric"
+              pattern="[0-9]*"
               value={betAmount}
-              onChange={(e) => setBetAmount(e.target.value)}
+              onChange={(e) => {
+                const val = e.target.value.replace(/[^0-9]/g, '');
+                setBetAmount(val);
+              }}
               className="flex-1 bg-white/5 border border-white/10 rounded-lg px-3 py-2 text-white"
               placeholder="Valor"
             />

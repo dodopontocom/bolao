@@ -8,12 +8,13 @@ import { IResult } from '@/models/Result';
 import { IFood } from '@/models/Food';
 import { IChat } from '@/models/Chat';
 import { getFlag } from '@/data/flags';
-import { LogOut, Settings, Trophy, List, BarChart3, User, Home, Send } from 'lucide-react';
+import { LogOut, Settings, Trophy, List, BarChart3, User, Home, Send, HelpCircle } from 'lucide-react';
 import MatchCard from '@/components/MatchCard';
 import AdminPanel from '@/components/AdminPanel';
 import Ranking from '@/components/Ranking';
 import MatchList from '@/components/MatchList';
 import Countdown from '@/components/Countdown';
+import Tutorial from '@/components/Tutorial';
 import { getMatchStatus } from '@/lib/services/matchService';
 
 interface RoundTableProps {
@@ -50,6 +51,16 @@ export default function RoundTable({
   const [chatInput, setChatInput] = useState('');
   const [movingToFood, setMovingToFood] = useState<{ id: string, x: number, y: number } | null>(null);
   const [isReturning, setIsReturning] = useState(false);
+  const [showTutorial, setShowTutorial] = useState(false);
+
+  // Check for first time tutorial
+  useEffect(() => {
+    const hasSeenTutorial = localStorage.getItem('hasSeenTutorial');
+    if (!hasSeenTutorial) {
+      setShowTutorial(true);
+      localStorage.setItem('hasSeenTutorial', 'true');
+    }
+  }, []);
 
   const calculateBasePosition = (index: number, total: number) => {
     const angle = (index / total) * Math.PI * 2 - Math.PI / 2;
@@ -165,6 +176,13 @@ export default function RoundTable({
               <User className="w-4 h-4 text-white/30" />
             </button>
             <button
+              onClick={() => setShowTutorial(true)}
+              className="p-2 rounded-lg hover:bg-white/10 transition-colors"
+              title="Como funciona?"
+            >
+              <HelpCircle className="w-4 h-4 text-white/30" />
+            </button>
+            <button
               onClick={() => {
                 const newCount = adminTapCount + 1;
                 setAdminTapCount(newCount);
@@ -191,18 +209,41 @@ export default function RoundTable({
       <main className="flex-1 max-w-lg mx-auto w-full px-4 py-4 pb-24">
         {activeTab === 'table' && (
           <div className="animate-fade-in space-y-6">
-            <div className="flex items-center justify-center gap-3">
+            <div className="flex items-center justify-start gap-3 px-2">
               <div className="flex items-center gap-2">
-                <div className="w-4 h-4 bg-green-500 rounded-full animate-pulse"></div>
-                <span className="text-white/80 text-xs font-medium">Online agora</span>
+                <div className="w-3 h-3 bg-green-500 rounded-full animate-pulse"></div>
+                <span className="text-white/60 text-[10px] font-bold uppercase tracking-wider">
+                  Online agora ({users.filter(u => new Date(u.lastSeen) > new Date(Date.now() - 60000)).length})
+                </span>
               </div>
             </div>
 
             <div className="relative aspect-square">
-              <div className="absolute inset-0 rounded-full bg-gradient-to-br from-green-800 to-green-950 border-4 border-yellow-600 shadow-2xl overflow-hidden">
+              {/* Table Surface */}
+              <div className="absolute inset-0 rounded-full bg-gradient-to-br from-green-800 to-green-950 border-4 border-yellow-600 shadow-2xl overflow-hidden z-0">
                 <div className="absolute inset-4 rounded-full border border-green-600/30"></div>
                 <div className="absolute inset-12 rounded-full border border-green-600/20"></div>
+              </div>
 
+              {/* Match Info (Center) */}
+              <div className="absolute left-1/2 top-1/2 transform -translate-x-1/2 -translate-y-1/2 w-3/5 z-10 pointer-events-none">
+                {nextMatch && (
+                  <div className="card p-4 text-center border-none bg-transparent">
+                    <p className="text-white/50 text-[10px] mb-1">Próximo jogo</p>
+                    <div className="flex items-center justify-center gap-2 mb-2">
+                      <span className="text-xl">{getFlag(nextMatch.team1)}</span>
+                      <span className="text-white/30">vs</span>
+                      <span className="text-xl">{getFlag(nextMatch.team2)}</span>
+                    </div>
+                    <div className="flex justify-center">
+                      <Countdown matchDate={nextMatch.matchDate} />
+                    </div>
+                  </div>
+                )}
+              </div>
+
+              {/* Users Around the Table */}
+              <div className="absolute inset-0 z-30 pointer-events-none">
                 {allAroundUsers.map((user, index) => {
                   const isCurrent = user._id === currentUser._id;
                   const pos = isCurrent ? avatarPos : calculateBasePosition(index, allAroundUsers.length);
@@ -212,11 +253,11 @@ export default function RoundTable({
                   return (
                     <div
                       key={user._id}
-                      className={`absolute transform -translate-x-1/2 -translate-y-1/2 flex flex-col items-center gap-1 transition-all duration-1000 ease-in-out ${isOnline ? '' : 'opacity-40'} ${isCurrent ? 'z-30' : 'z-20'}`}
+                      className={`absolute transform -translate-x-1/2 -translate-y-1/2 flex flex-col items-center gap-1 transition-all duration-1000 ease-in-out pointer-events-auto ${isOnline ? '' : 'opacity-40'} ${isCurrent ? 'z-50' : 'z-40'}`}
                       style={{ left: `${pos.x}%`, top: `${pos.y}%` }}
                     >
                       {userChat && (
-                        <div className="absolute bottom-full mb-2 bg-white text-black text-[10px] font-bold py-1 px-2 rounded-lg shadow-lg whitespace-nowrap animate-bounce z-50">
+                        <div className="absolute bottom-full mb-2 bg-white text-black text-[10px] font-bold py-1 px-2 rounded-lg shadow-xl whitespace-nowrap animate-bounce z-50 ring-2 ring-black/5">
                           {userChat.message}
                           <div className="absolute top-full left-1/2 -translate-x-1/2 border-8 border-transparent border-t-white"></div>
                         </div>
@@ -233,7 +274,10 @@ export default function RoundTable({
                     </div>
                   );
                 })}
+              </div>
 
+              {/* Food on the Table */}
+              <div className="absolute inset-0 z-15">
                 {foods.map((food) => (
                   <button
                     key={food._id}
@@ -244,22 +288,6 @@ export default function RoundTable({
                     {food.emoji}
                   </button>
                 ))}
-
-                <div className="absolute left-1/2 top-1/2 transform -translate-x-1/2 -translate-y-1/2 w-3/5 z-0 pointer-events-none">
-                  {nextMatch && (
-                    <div className="card p-4 text-center border-none bg-transparent">
-                      <p className="text-white/50 text-[10px] mb-1">Próximo jogo</p>
-                      <div className="flex items-center justify-center gap-2 mb-2">
-                        <span className="text-xl">{getFlag(nextMatch.team1)}</span>
-                        <span className="text-white/30">vs</span>
-                        <span className="text-xl">{getFlag(nextMatch.team2)}</span>
-                      </div>
-                      <div className="flex justify-center">
-                        <Countdown targetDate={nextMatch.date} matchTime={nextMatch.time} />
-                      </div>
-                    </div>
-                  )}
-                </div>
               </div>
             </div>
 
@@ -310,6 +338,8 @@ export default function RoundTable({
           </div>
         )}
       </main>
+
+      <Tutorial isOpen={showTutorial} onClose={() => setShowTutorial(false)} />
 
       <nav className="fixed bottom-0 left-0 right-0 z-40 bg-[#050816]/95 backdrop-blur-md border-t border-white/10">
         <div className="max-w-lg mx-auto flex">

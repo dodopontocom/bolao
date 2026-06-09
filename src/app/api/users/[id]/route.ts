@@ -24,7 +24,7 @@ export async function PUT(
         return NextResponse.json({ error: 'Já resgatado nesta partida' }, { status: 400 });
       }
 
-      user.foodPoints -= 10;
+      // No longer subtracting foodPoints - Level is persistent
       user.balance += 1000;
       user.lastClaimedMatchId = body.matchId;
       await user.save();

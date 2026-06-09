@@ -48,13 +48,18 @@ export default function Home() {
         fetch('/api/food'),
         fetch('/api/chat'),
       ]);
-      setUsers(await usersRes.json());
+      const usersData = await usersRes.json();
+      setUsers(usersData);
       setMatches(await matchesRes.json());
       setResults(await resultsRes.json());
       setFoods(await foodsRes.json());
       setChats(await chatsRes.json());
 
       if (currentUser) {
+        const updatedSelf = usersData.find((u: IUser) => u._id === currentUser._id);
+        if (updatedSelf) {
+          setCurrentUser(updatedSelf);
+        }
         await fetch(`/api/users/${currentUser._id}/ping`, { method: 'POST' });
       }
     } catch (error) {
@@ -70,7 +75,9 @@ export default function Home() {
     }
   }, [currentUser, refreshData]);
 
-  // Spawn food randomly
+  const onlineUsers = users.filter(u => new Date(u.lastSeen) > new Date(Date.now() - 60000));
+
+  // Spawn food randomly - Scales with online users
   useEffect(() => {
     if (currentUser) {
       const spawnFood = () => {
@@ -82,10 +89,12 @@ export default function Home() {
           .catch(console.error);
       };
       
-      const interval = setInterval(spawnFood, 30000);
+      // Base 30s interval, reduced by 5s for each online user (min 5s)
+      const intervalTime = Math.max(5000, 30000 - (onlineUsers.length * 5000));
+      const interval = setInterval(spawnFood, intervalTime);
       return () => clearInterval(interval);
     }
-  }, [currentUser]);
+  }, [currentUser, onlineUsers.length]);
 
   const handleSendMessage = async (message: string) => {
     if (!currentUser) return;

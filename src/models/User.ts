@@ -15,6 +15,7 @@ const UserSchema = new Schema<IUser>({
   avatar: { type: String, required: true },
   balance: { type: Number, default: 10000 },
   foodPoints: { type: Number, default: 0 },
+  totalFoodPoints: { type: Number, default: 0 },
   lastSeen: { type: Date, default: Date.now },
   isOnline: { type: Boolean, default: false },
   city: { type: String },
