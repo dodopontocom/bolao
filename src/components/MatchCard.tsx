@@ -175,7 +175,7 @@ export default function MatchCard({ match, userName, userId, currentUser, result
       <div className="flex items-center gap-3">
         <div className="flex-1 flex flex-col items-center gap-1.5 min-w-0">
           <span className="text-3xl">{getFlag(match.team1)}</span>
-          <span className="text-sm font-semibold text-center truncate w-full">{match.team1}</span>
+          <span className="text-sm font-semibold text-center truncate w-full text-white">{match.team1}</span>
         </div>
 
         <div className="flex items-center gap-3">
@@ -219,7 +219,7 @@ export default function MatchCard({ match, userName, userId, currentUser, result
 
         <div className="flex-1 flex flex-col items-center gap-1.5 min-w-0">
           <span className="text-3xl">{getFlag(match.team2)}</span>
-          <span className="text-sm font-semibold text-center truncate w-full">{match.team2}</span>
+          <span className="text-sm font-semibold text-center truncate w-full text-white">{match.team2}</span>
         </div>
       </div>
 

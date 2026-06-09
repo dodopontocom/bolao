@@ -1,21 +1,23 @@
 'use client';
 
 import { useState } from 'react';
+import { useRouter } from 'next/navigation';
 import { IUser } from '@/models/User';
-import { IMatch } from '@/models/Match';
+import { Match } from '@/data/matches';
 import { IResult } from '@/models/Result';
 import { IFood } from '@/models/Food';
-import { LogOut, Settings, Trophy, List, BarChart3, Shield } from 'lucide-react';
+import { LogOut, Settings, Trophy, List, BarChart3, Shield, User } from 'lucide-react';
 import MatchCard from '@/components/MatchCard';
 import AdminPanel from '@/components/AdminPanel';
 import Ranking from '@/components/Ranking';
 import MatchList from '@/components/MatchList';
-import { getMatchStatus } from '@/data/matches';
+import { getMatchStatus } from '@/lib/services/matchService';
 
 interface RoundTableProps {
   currentUser: IUser;
   users: IUser[];
-  nextMatch: IMatch | null;
+  matches: Match[];
+  nextMatch: Match | null;
   results: Record<string, IResult>;
   foods: IFood[];
   onCollectFood: (foodId: string) => void;
@@ -27,12 +29,14 @@ type Tab = 'table' | 'matches' | 'ranking';
 export default function RoundTable({
   currentUser,
   users,
+  matches,
   nextMatch,
   results,
   foods,
   onCollectFood,
   onLogout,
 }: RoundTableProps) {
+  const router = useRouter();
   const [activeTab, setActiveTab] = useState<Tab>('table');
   const [showAdmin, setShowAdmin] = useState(false);
   const [adminTapCount, setAdminTapCount] = useState(0);
@@ -74,6 +78,12 @@ export default function RoundTable({
             </div>
           </div>
           <div className="flex items-center gap-1">
+            <button
+              onClick={() => router.push('/profile')}
+              className="p-2 rounded-lg hover:bg-white/10 transition-colors"
+            >
+              <User className="w-4 h-4 text-white/30" />
+            </button>
             <button
               onClick={handleSettingsTap}
               className="p-2 rounded-lg hover:bg-white/10 transition-colors"
@@ -135,9 +145,9 @@ export default function RoundTable({
                     <div className="card p-4 text-center">
                       <p className="text-white/50 text-xs mb-2">Próximo jogo</p>
                       <div className="flex items-center justify-center gap-2 mb-2">
-                        <span className="text-2xl">{nextMatch.homeTeam}</span>
+                        <span className="text-2xl">{nextMatch.team1}</span>
                         <span className="text-white/50">vs</span>
-                        <span className="text-2xl">{nextMatch.awayTeam}</span>
+                        <span className="text-2xl">{nextMatch.team2}</span>
                       </div>
                       {results[nextMatch.id] && (
                         <p className="text-yellow-400 font-bold text-xl">
@@ -165,8 +175,10 @@ export default function RoundTable({
         {activeTab === 'matches' && (
           <div className="animate-fade-in">
             <MatchList
-              matches={users as any}
+              matches={matches}
               userName={currentUser.name}
+              userId={currentUser._id}
+              currentUser={currentUser}
               results={results}
             />
           </div>

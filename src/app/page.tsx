@@ -4,15 +4,15 @@ import { useState, useEffect, useCallback } from 'react';
 import LoginScreen from '@/components/LoginScreen';
 import RoundTable from '@/components/RoundTable';
 import { IUser } from '@/models/User';
-import { IMatch } from '@/models/Match';
+import { Match } from '@/data/matches';
 import { IResult } from '@/models/Result';
 import { IFood } from '@/models/Food';
-import { getMatchStatus } from '@/data/matches';
+import { getMatchStatus } from '@/lib/services/matchService';
 
 export default function Home() {
   const [currentUser, setCurrentUser] = useState<IUser | null>(null);
   const [users, setUsers] = useState<IUser[]>([]);
-  const [matches, setMatches] = useState<IMatch[]>([]);
+  const [matches, setMatches] = useState<Match[]>([]);
   const [results, setResults] = useState<Record<string, IResult>>({});
   const [foods, setFoods] = useState<IFood[]>([]);
   const [loading, setLoading] = useState(true);
@@ -136,6 +136,7 @@ export default function Home() {
       <RoundTable
         currentUser={currentUser}
         users={users}
+        matches={matches}
         nextMatch={nextMatch}
         results={results}
         foods={foods}
