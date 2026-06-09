@@ -52,7 +52,7 @@ export default function RoundTable({
   const [movingToFood, setMovingToFood] = useState<{ id: string, x: number, y: number } | null>(null);
   const [isReturning, setIsReturning] = useState(false);
   const [showTutorial, setShowTutorial] = useState(false);
-  const [activeGritoUserId, setActiveGritoUserId] = useState<string | null>(null);
+  const [activeJargonUserId, setActiveJargonUserId] = useState<string | null>(null);
 
   // Check for first time tutorial
   useEffect(() => {

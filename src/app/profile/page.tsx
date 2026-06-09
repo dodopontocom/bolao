@@ -12,6 +12,7 @@ import LoginScreen from '@/components/LoginScreen';
 import { ALL_AVATARS } from '@/data/avatars';
 import { calculatePredictionReward, getMatchStatus } from '@/lib/services/matchService';
 import MatchCard from '@/components/MatchCard';
+import Countdown from '@/components/Countdown';
 
 const PREDEFINED_CITIES = ['Pilar', 'Sorocaba', 'Piedade', 'Valinhos', 'Cocais'];
 const JARGONS = [
@@ -133,7 +134,7 @@ export default function ProfilePage() {
   };
 
   const totalSpent = bets.reduce((sum, bet) => sum + bet.amount, 0);
-  const totalWon = bets.filter(bet => bet.status === 'won').reduce((sum, bet) => sum + (bet.winAmount || 0), 0);
+  const totalWon = bets.filter(bet => bet.won).reduce((sum, bet) => sum + (bet.payout || 0), 0);
   const netProfit = totalWon - totalSpent;
 
   if (loading) {
@@ -253,14 +254,14 @@ export default function ProfilePage() {
             <div className="bg-white/5 rounded-xl p-4 text-center">
               <p className="text-white/60 text-sm">Saldo</p>
               <p className="text-2xl font-bold text-yellow-400">
-                R$ {currentUser.balance.toLocaleString()}
+                N$ {currentUser.balance.toLocaleString()}
               </p>
             </div>
             <div className="bg-white/5 rounded-xl p-4 text-center">
               <p className="text-white/60 text-sm">Fominha Level</p>
               <div className="flex items-center justify-center gap-1">
                 <Utensils className="w-5 h-5 text-green-400" />
-                <span className="text-2xl font-bold text-green-400">{currentUser.totalFoodPoints || 0}</span>
+                <span className="text-2xl font-bold text-green-400">{currentUser.foodPoints || 0}</span>
               </div>
             </div>
           </div>
@@ -275,16 +276,16 @@ export default function ProfilePage() {
           <div className="space-y-3">
             <div className="flex justify-between items-center">
               <span className="text-white/60">Total gasto</span>
-              <span className="text-red-400 font-medium">- R$ {totalSpent.toLocaleString()}</span>
+              <span className="text-red-400 font-medium">- N$ {totalSpent.toLocaleString()}</span>
             </div>
             <div className="flex justify-between items-center">
               <span className="text-white/60">Total ganho</span>
-              <span className="text-green-400 font-medium">+ R$ {totalWon.toLocaleString()}</span>
+              <span className="text-green-400 font-medium">+ N$ {totalWon.toLocaleString()}</span>
             </div>
             <div className="flex justify-between items-center pt-3 border-t border-white/10">
               <span className="text-white font-medium">Resultado</span>
               <span className={`font-bold ${netProfit >= 0 ? 'text-green-400' : 'text-red-400'}`}>
-                {netProfit >= 0 ? '+' : ''} R$ {netProfit.toLocaleString()}
+                {netProfit >= 0 ? '+' : ''} N$ {netProfit.toLocaleString()}
               </span>
             </div>
           </div>
@@ -309,29 +310,36 @@ export default function ProfilePage() {
                   <div key={bet._id} className="bg-white/5 rounded-xl p-4">
                     <div className="flex items-center justify-between mb-2">
                       <div className="flex items-center gap-2">
-                        <span className="text-2xl">{getFlag(match.homeTeam)}</span>
-                        <span className="text-white font-medium">{match.homeTeam}</span>
+                        <span className="text-2xl">{getFlag(match.team1)}</span>
+                        <span className="text-white font-medium">{match.team1}</span>
                         <span className="text-white/60">x</span>
-                        <span className="text-white font-medium">{match.awayTeam}</span>
-                        <span className="text-2xl">{getFlag(match.awayTeam)}</span>
+                        <span className="text-white font-medium">{match.team2}</span>
+                        <span className="text-2xl">{getFlag(match.team2)}</span>
                       </div>
                       <span className={`text-sm px-2 py-1 rounded-full ${
-                        bet.status === 'pending' ? 'bg-yellow-500/20 text-yellow-400' :
-                        bet.status === 'won' ? 'bg-green-500/20 text-green-400' :
+                        !bet.settled ? 'bg-yellow-500/20 text-yellow-400' :
+                        bet.won ? 'bg-green-500/20 text-green-400' :
                         'bg-red-500/20 text-red-400'
                       }`}>
-                        {bet.status === 'pending' ? 'Pendente' :
-                         bet.status === 'won' ? 'Ganhou!' : 'Perdeu'}
+                        {!bet.settled ? 'Pendente' :
+                         bet.won ? 'Ganhou!' : 'Perdeu'}
                       </span>
                     </div>
+                    
+                    {!bet.settled && (
+                      <div className="flex justify-center py-2 mb-2 border-y border-white/5">
+                        <Countdown matchDate={match.matchDate} />
+                      </div>
+                    )}
+
                     <div className="flex items-center justify-between">
                       <div className="text-sm text-white/60">
-                        Aposta: {bet.team === 'home' ? match.homeTeam : match.awayTeam}
+                        Aposta: {bet.outcome === 'home' ? match.team1 : bet.outcome === 'draw' ? 'Empate' : match.team2}
                       </div>
                       <div className="text-sm">
-                        <span className="text-white/60">R$ {bet.amount.toLocaleString()}</span>
-                        {bet.status === 'won' && (
-                          <span className="text-green-400 ml-2">→ R$ {(bet.winAmount || 0).toLocaleString()}</span>
+                        <span className="text-white/60">N$ {bet.amount.toLocaleString()}</span>
+                        {bet.settled && bet.won && (
+                          <span className="text-green-400 ml-2">→ N$ {(bet.payout || 0).toLocaleString()}</span>
                         )}
                       </div>
                     </div>

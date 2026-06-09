@@ -26,7 +26,7 @@ export async function POST(req: NextRequest) {
     emoji: body.emoji || FOOD_EMOJIS[Math.floor(Math.random() * FOOD_EMOJIS.length)],
     x: Math.random() * 80 + 10,
     y: Math.random() * 80 + 10,
-    expiresAt: new Date(Date.now() + 60000),
+    expiresAt: new Date(Date.now() + 300000),
   });
   
   return NextResponse.json(food);

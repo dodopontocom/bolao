@@ -50,6 +50,7 @@ export const COUNTRY_FLAGS: Record<string, string> = {
 };
 
 export function getFlag(teamName: string): string {
+  if (!teamName) return '⚽';
   if (COUNTRY_FLAGS[teamName]) return COUNTRY_FLAGS[teamName];
   if (teamName.startsWith('W') || teamName.startsWith('L')) return '🏆';
   if (teamName.match(/^\d[A-L]/)) return '🏆';

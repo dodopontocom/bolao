@@ -33,10 +33,10 @@ export async function PUT(
     }
 
     // Normal profile update
-    const { name, avatar } = body;
+    const { name, avatar, city, jargon } = body;
     const updatedUser = await User.findByIdAndUpdate(
       id,
-      { name, avatar },
+      { name, avatar, city, jargon },
       { new: true }
     );
 

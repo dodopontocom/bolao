@@ -79,22 +79,35 @@ export default function Home() {
 
   // Spawn food randomly - Scales with online users
   useEffect(() => {
-    if (currentUser) {
-      const spawnFood = () => {
-        fetch('/api/food', { method: 'POST' })
-          .then(res => res.json())
-          .then(newFood => {
+    if (!currentUser) return;
+
+    let timeoutId: NodeJS.Timeout;
+    
+    const spawnFood = () => {
+      // Calculate delay based on current online users
+      // Use the 'users' state directly from the outer scope is fine if we use recursive timeout
+      // but to be safer and avoid dependency loops, we calculate count here
+      const onlineCount = users.filter(u => new Date(u.lastSeen) > new Date(Date.now() - 60000)).length;
+      const delay = Math.max(5000, 30000 - (onlineCount * 5000));
+
+      timeoutId = setTimeout(async () => {
+        try {
+          const res = await fetch('/api/food', { method: 'POST' });
+          if (res.ok) {
+            const newFood = await res.json();
             setFoods(prev => [...prev, newFood]);
-          })
-          .catch(console.error);
-      };
-      
-      // Base 30s interval, reduced by 5s for each online user (min 5s)
-      const intervalTime = Math.max(5000, 30000 - (onlineUsers.length * 5000));
-      const interval = setInterval(spawnFood, intervalTime);
-      return () => clearInterval(interval);
-    }
-  }, [currentUser, onlineUsers.length]);
+          }
+        } catch (error) {
+          console.error('Failed to spawn food:', error);
+        } finally {
+          spawnFood(); // Schedule next
+        }
+      }, delay);
+    };
+    
+    spawnFood();
+    return () => clearTimeout(timeoutId);
+  }, [currentUser]); // Only depend on currentUser login/logout
 
   const handleSendMessage = async (message: string) => {
     if (!currentUser) return;
