@@ -1,3 +1,5 @@
+'use client';
+
 import { useState, useEffect } from 'react';
 
 interface CountdownProps {
@@ -48,8 +50,8 @@ export default function Countdown({ targetDate, matchTime }: CountdownProps) {
   const isClosed = timeLeft === 'ENCERRADO';
 
   return (
-    <div className={`flex items-center gap-1.5 text-xs font-medium ${isClosed ? 'text-red-400' : 'text-gold-400'}`}>
-      <div className={`w-1.5 h-1.5 rounded-full ${isClosed ? 'bg-red-400' : 'bg-gold-400 animate-pulse'}`} />
+    <div className={`flex items-center gap-1.5 text-xs font-medium ${isClosed ? 'text-red-400' : 'text-yellow-400'}`}>
+      <div className={`w-1.5 h-1.5 rounded-full ${isClosed ? 'bg-red-400' : 'bg-yellow-400 animate-pulse'}`} />
       {isClosed ? 'Palpites encerrados' : timeLeft}
     </div>
   );

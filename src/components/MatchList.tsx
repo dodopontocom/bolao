@@ -1,40 +1,31 @@
-import { Match, isGroupStage } from '../data/matches';
-import { MatchResult } from '../data/storage';
-import MatchCard from './MatchCard';
+'use client';
+
+import { Match } from '@/data/matches';
 
 interface MatchListProps {
   matches: Match[];
   userName: string;
-  results: Record<string, MatchResult>;
+  results: any;
 }
 
 export default function MatchList({ matches, userName, results }: MatchListProps) {
-  const groupMatches = matches.filter(isGroupStage);
-  const groups = [...new Set(groupMatches.map((m) => m.group).filter(Boolean))].sort() as string[];
-
   return (
-    <div className="space-y-6">
-      {groups.map((group) => {
-        const groupMatchesForGroup = groupMatches.filter((m) => m.group === group);
-        return (
-          <div key={group}>
-            <h3 className="font-display text-sm font-bold text-gold-400 uppercase tracking-widest mb-3 flex items-center gap-2">
-              <div className="w-6 h-0.5 bg-gold-400/50 rounded" />
-              {group}
-            </h3>
-            <div className="space-y-3">
-              {groupMatchesForGroup.map((match) => (
-                <MatchCard
-                  key={match.id}
-                  match={match}
-                  userName={userName}
-                  result={results[match.id] || null}
-                />
-              ))}
+    <div className="space-y-3">
+      {matches.length === 0 ? (
+        <div className="text-center py-8 text-white/40">
+          Nenhum jogo para exibir
+        </div>
+      ) : (
+        matches.map((match) => (
+          <div key={match.id} className="card p-3">
+            <div className="flex items-center justify-between">
+              <span className="text-white text-sm">{match.team1}</span>
+              <span className="text-white/40 text-sm">vs</span>
+              <span className="text-white text-sm">{match.team2}</span>
             </div>
           </div>
-        );
-      })}
+        ))
+      )}
     </div>
   );
 }

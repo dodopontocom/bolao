@@ -89,12 +89,3 @@ export function isGroupStage(match: Match): boolean {
 export function isKnockoutStage(match: Match): boolean {
   return !isGroupStage(match);
 }
-
-export function getMatchStatus(match: Match, now: number = Date.now()): 'upcoming' | 'open' | 'closed' | 'finished' {
-  if (match.score1 !== undefined && match.score2 !== undefined) return 'finished';
-  const matchDate = match.matchDate || new Date(match.date).getTime();
-  const closeTime = matchDate - 30 * 60 * 1000;
-  if (now > matchDate) return 'closed';
-  if (now > closeTime) return 'closed';
-  return 'open';
-}
