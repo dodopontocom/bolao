@@ -7,6 +7,7 @@ export interface IUser extends Document {
   foodPoints: number;
   lastSeen: Date;
   isOnline: boolean;
+  city?: string;
 }
 
 const UserSchema = new Schema<IUser>({
@@ -16,6 +17,7 @@ const UserSchema = new Schema<IUser>({
   foodPoints: { type: Number, default: 0 },
   lastSeen: { type: Date, default: Date.now },
   isOnline: { type: Boolean, default: false },
+  city: { type: String },
 }, {
   timestamps: true,
 });

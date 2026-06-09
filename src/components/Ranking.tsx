@@ -94,7 +94,7 @@ export default function Ranking({ users, results, currentUserName }: RankingProp
             </p>
           </div>
           <div className="text-right">
-            <p className="text-yellow-400 font-bold">R${user.balance.toLocaleString()}</p>
+            <p className="text-yellow-400 font-bold">N${user.balance.toLocaleString()}</p>
           </div>
         </div>
       ))}

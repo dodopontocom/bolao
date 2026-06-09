@@ -5,9 +5,10 @@ export async function POST(req: NextRequest) {
   await dbConnect();
   
   const { pin } = await req.json();
-  const validPin = process.env.PIN_CODE;
+  const envPins = process.env.PIN_CODE || '199,455';
+  const validPins = envPins.split(',').map(p => p.trim());
   
-  if (pin === validPin) {
+  if (validPins.includes(pin)) {
     return NextResponse.json({ success: true });
   }
   

@@ -272,7 +272,7 @@ export default function MatchCard({ match, userName, userId, currentUser, result
         <div className="mt-4 pt-4 border-t border-white/10 space-y-3">
           {userBet ? (
             <div className="text-center text-white/60 text-sm">
-              Você já apostou R${userBet.amount} em {userBet.outcome} ({userBet.odd}x)
+              Você já apostou N${userBet.amount} em {userBet.outcome} ({userBet.odd}x)
             </div>
           ) : (
             <>

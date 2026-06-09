@@ -22,6 +22,7 @@ export default function LoginScreen({ onLogin, existingUsers }: LoginScreenProps
   };
   
   const [avatar, setAvatar] = useState(getFirstAvailableAvatar());
+  const [city, setCity] = useState<string | undefined>();
 
   const handlePinSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -37,6 +38,9 @@ export default function LoginScreen({ onLogin, existingUsers }: LoginScreenProps
       const data = await res.json();
 
       if (data.success) {
+        if (pin === '199') setCity('Pilar');
+        if (pin === '455') setCity('Sorocaba');
+        
         if (existingUsers.length > 0) {
           setStep('existing');
         } else {
@@ -58,7 +62,7 @@ export default function LoginScreen({ onLogin, existingUsers }: LoginScreenProps
       const res = await fetch('/api/users', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ name: name.trim(), avatar }),
+        body: JSON.stringify({ name: name.trim(), avatar, city }),
       });
 
       const user = await res.json();
@@ -73,7 +77,7 @@ export default function LoginScreen({ onLogin, existingUsers }: LoginScreenProps
       const res = await fetch('/api/users', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ name: user.name, avatar: user.avatar }),
+        body: JSON.stringify({ name: user.name, avatar: user.avatar, city }),
       });
 
       const updatedUser = await res.json();
@@ -88,7 +92,9 @@ export default function LoginScreen({ onLogin, existingUsers }: LoginScreenProps
       <div className="w-full max-w-md">
         <div className="text-center mb-8">
           <h1 className="text-3xl font-bold text-white mb-2">⚽ Bolão 2026</h1>
-          <p className="text-white/60">Venha participar da mesa da família!</p>
+          <p className="text-white/60">
+            {city ? `Bem-vinda família de ${city}!` : 'Venha participar da mesa da família!'}
+          </p>
         </div>
 
         <div className="card p-6">

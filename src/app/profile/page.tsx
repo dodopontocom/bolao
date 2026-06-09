@@ -2,7 +2,7 @@
 
 import { useState, useEffect, useMemo } from 'react';
 import { useRouter } from 'next/navigation';
-import { ArrowLeft, Edit2, Save, Trophy, TrendingUp, TrendingDown, DollarSign } from 'lucide-react';
+import { ArrowLeft, Edit2, Save, Trophy, TrendingUp, TrendingDown, DollarSign, Home } from 'lucide-react';
 import { IUser } from '@/models/User';
 import { IBet } from '@/models/Bet';
 import { Match } from '@/data/matches';
@@ -125,14 +125,23 @@ export default function ProfilePage() {
   return (
     <div className="min-h-screen bg-[#050816]">
       <header className="sticky top-0 z-40 bg-[#050816]/90 backdrop-blur-md border-b border-white/10">
-        <div className="max-w-lg mx-auto px-4 py-3 flex items-center gap-3">
+        <div className="max-w-lg mx-auto px-4 py-3 flex items-center justify-between">
+          <div className="flex items-center gap-3">
+            <button
+              onClick={() => router.back()}
+              className="p-2 rounded-lg hover:bg-white/10"
+            >
+              <ArrowLeft className="w-5 h-5 text-white" />
+            </button>
+            <h1 className="text-xl font-bold text-white">Meu Perfil</h1>
+          </div>
           <button
-            onClick={() => router.back()}
-            className="p-2 rounded-lg hover:bg-white/10"
+            onClick={() => router.push('/')}
+            className="p-2 rounded-lg hover:bg-white/10 transition-colors"
+            title="Ir para a Home"
           >
-            <ArrowLeft className="w-5 h-5 text-white" />
+            <Home className="w-5 h-5 text-white/30" />
           </button>
-          <h1 className="text-xl font-bold text-white">Meu Perfil</h1>
         </div>
       </header>
 
@@ -185,8 +194,11 @@ export default function ProfilePage() {
             <div className="flex items-center gap-4">
               <div className="text-5xl">{currentUser.avatar}</div>
               <div className="flex-1">
-                <h2 className="text-2xl font-bold text-white">{currentUser.name}</h2>
-                <p className="text-yellow-400 font-bold text-lg">R${currentUser.balance.toLocaleString()}</p>
+                <h2 className="text-2xl font-bold text-white">
+                  {currentUser.name}
+                  {currentUser.city && <span className="ml-2 text-sm text-white/40 font-normal">({currentUser.city})</span>}
+                </h2>
+                <p className="text-yellow-400 font-bold text-lg">N${currentUser.balance.toLocaleString()}</p>
               </div>
               <button
                 onClick={() => setIsEditing(true)}
@@ -203,18 +215,18 @@ export default function ProfilePage() {
           <div className="card p-4 text-center">
             <DollarSign className="w-6 h-6 text-white/60 mx-auto mb-1" />
             <p className="text-xs text-white/40 mb-1">Gasto</p>
-            <p className="text-lg font-bold text-red-400">-R${stats.totalSpent.toLocaleString()}</p>
+            <p className="text-lg font-bold text-red-400">-N${stats.totalSpent.toLocaleString()}</p>
           </div>
           <div className="card p-4 text-center">
             <Trophy className="w-6 h-6 text-white/60 mx-auto mb-1" />
             <p className="text-xs text-white/40 mb-1">Ganho</p>
-            <p className="text-lg font-bold text-green-400">+R${stats.totalWon.toLocaleString()}</p>
+            <p className="text-lg font-bold text-green-400">+N${stats.totalWon.toLocaleString()}</p>
           </div>
           <div className="card p-4 text-center">
             {stats.netProfit >= 0 ? <TrendingUp className="w-6 h-6 text-white/60 mx-auto mb-1" /> : <TrendingDown className="w-6 h-6 text-white/60 mx-auto mb-1" />}
             <p className="text-xs text-white/40 mb-1">Lucro</p>
             <p className={`text-lg font-bold ${stats.netProfit >= 0 ? 'text-green-400' : 'text-red-400'}`}>
-              {stats.netProfit >= 0 ? '+' : ''}R${stats.netProfit.toLocaleString()}
+              {stats.netProfit >= 0 ? '+' : ''}N${stats.netProfit.toLocaleString()}
             </p>
           </div>
         </div>
@@ -250,7 +262,7 @@ export default function ProfilePage() {
                   )}
                   <div className="flex items-center justify-between">
                     <div className="flex items-center gap-2">
-                      <span className="text-white text-sm">R${bet.amount.toLocaleString()}</span>
+                      <span className="text-white text-sm">N${bet.amount.toLocaleString()}</span>
                       <span className="text-yellow-400 text-sm font-bold">@{bet.odd.toFixed(2)}x</span>
                       <span className="text-xs text-white/40">
                         {bet.outcome === 'home' ? (match?.team1 || 'Casa') : bet.outcome === 'draw' ? 'Empate' : (match?.team2 || 'Fora')}
@@ -260,7 +272,7 @@ export default function ProfilePage() {
                       {!bet.settled ? (
                         <span className="text-yellow-400 text-xs font-bold">PENDENTE</span>
                       ) : bet.won ? (
-                        <span className="text-green-400 text-xs font-bold">GANHOU +R${bet.payout.toLocaleString()}</span>
+                        <span className="text-green-400 text-xs font-bold">GANHOU +N${bet.payout.toLocaleString()}</span>
                       ) : (
                         <span className="text-red-400 text-xs font-bold">PERDEU</span>
                       )}

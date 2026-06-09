@@ -1,13 +1,14 @@
 'use client';
 
-import { useState } from 'react';
+import { useState, useEffect, useRef, useMemo } from 'react';
 import { useRouter } from 'next/navigation';
 import { IUser } from '@/models/User';
 import { Match } from '@/data/matches';
 import { IResult } from '@/models/Result';
 import { IFood } from '@/models/Food';
+import { IChat } from '@/models/Chat';
 import { getFlag } from '@/data/flags';
-import { LogOut, Settings, Trophy, List, BarChart3, Shield, User } from 'lucide-react';
+import { LogOut, Settings, Trophy, List, BarChart3, User, Home, Send } from 'lucide-react';
 import MatchCard from '@/components/MatchCard';
 import AdminPanel from '@/components/AdminPanel';
 import Ranking from '@/components/Ranking';
@@ -22,6 +23,8 @@ interface RoundTableProps {
   nextMatch: Match | null;
   results: Record<string, IResult>;
   foods: IFood[];
+  chats: IChat[];
+  onSendMessage: (message: string) => void;
   onCollectFood: (foodId: string) => void;
   onLogout: () => void;
 }
@@ -35,6 +38,8 @@ export default function RoundTable({
   nextMatch,
   results,
   foods,
+  chats,
+  onSendMessage,
   onCollectFood,
   onLogout,
 }: RoundTableProps) {
@@ -42,12 +47,11 @@ export default function RoundTable({
   const [activeTab, setActiveTab] = useState<Tab>('table');
   const [showAdmin, setShowAdmin] = useState(false);
   const [adminTapCount, setAdminTapCount] = useState(0);
+  const [chatInput, setChatInput] = useState('');
+  const [movingToFood, setMovingToFood] = useState<{ id: string, x: number, y: number } | null>(null);
+  const [isReturning, setIsReturning] = useState(false);
 
-  const onlineUsers = users.filter(u => new Date(u.lastSeen) > new Date(Date.now() - 60000));
-  const offlineUsers = users.filter(u => new Date(u.lastSeen) <= new Date(Date.now() - 60000));
-  const allAroundUsers = [...onlineUsers, ...offlineUsers];
-
-  const calculatePosition = (index: number, total: number) => {
+  const calculateBasePosition = (index: number, total: number) => {
     const angle = (index / total) * Math.PI * 2 - Math.PI / 2;
     const radius = 42;
     return {
@@ -56,30 +60,73 @@ export default function RoundTable({
     };
   };
 
-  const handleSettingsTap = () => {
-    const newCount = adminTapCount + 1;
-    setAdminTapCount(newCount);
-    if (newCount >= 5) {
-      setShowAdmin(true);
-      setAdminTapCount(0);
+  const allAroundUsers = useMemo(() => [...users].sort((a, b) => a._id.localeCompare(b._id)), [users]);
+  const currentUserIndex = useMemo(() => allAroundUsers.findIndex(u => u._id === currentUser._id), [allAroundUsers, currentUser._id]);
+  
+  const basePos = useMemo(() => calculateBasePosition(currentUserIndex, allAroundUsers.length), [currentUserIndex, allAroundUsers.length]);
+
+  const [avatarPos, setAvatarPos] = useState(basePos);
+
+  // Update base position if users change, but only if not busy
+  useEffect(() => {
+    if (!movingToFood && !isReturning) {
+      setAvatarPos(basePos);
     }
-    setTimeout(() => setAdminTapCount(0), 3000);
+  }, [basePos, movingToFood, isReturning]);
+
+  const handleCollectClick = (food: IFood) => {
+    if (movingToFood) return;
+    setMovingToFood({ id: food._id, x: food.x, y: food.y });
+    setAvatarPos({ x: food.x, y: food.y });
+
+    // Wait for animation, then collect
+    setTimeout(() => {
+      onCollectFood(food._id);
+      onSendMessage('glup! 😋');
+      setIsReturning(true);
+      setMovingToFood(null);
+      setAvatarPos(basePos);
+      
+      setTimeout(() => {
+        setIsReturning(false);
+      }, 1000);
+    }, 1000);
+  };
+
+  const handleSendChat = (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!chatInput.trim()) return;
+    onSendMessage(chatInput.trim());
+    setChatInput('');
   };
 
   return (
     <div className="min-h-screen flex flex-col">
       <header className="sticky top-0 z-40 bg-[#050816]/90 backdrop-blur-md border-b border-white/10">
         <div className="max-w-lg mx-auto px-4 py-3 flex items-center justify-between">
-          <div className="flex items-center gap-2">
+          <button 
+            onClick={() => router.push('/profile')}
+            className="flex items-center gap-2 hover:bg-white/5 transition-colors p-1 -ml-1 rounded-lg"
+          >
             <div className="w-10 h-10 rounded-full bg-gradient-to-br from-green-500 to-green-700 flex items-center justify-center text-xl">
               {currentUser.avatar}
             </div>
-            <div>
-              <p className="text-white font-medium text-sm">{currentUser.name}</p>
-              <p className="text-yellow-400 text-xs font-bold">R${currentUser.balance.toLocaleString()}</p>
+            <div className="text-left">
+              <p className="text-white font-medium text-sm">
+                {currentUser.name}
+                {currentUser.city && <span className="ml-2 text-[10px] text-white/40 font-normal">({currentUser.city})</span>}
+              </p>
+              <p className="text-yellow-400 text-xs font-bold">N${currentUser.balance.toLocaleString()}</p>
             </div>
-          </div>
+          </button>
           <div className="flex items-center gap-1">
+            <button
+              onClick={() => setActiveTab('table')}
+              className="p-2 rounded-lg hover:bg-white/10 transition-colors"
+              title="Ir para a Mesa"
+            >
+              <Home className={`w-4 h-4 ${activeTab === 'table' ? 'text-yellow-400' : 'text-white/30'}`} />
+            </button>
             <button
               onClick={() => router.push('/profile')}
               className="p-2 rounded-lg hover:bg-white/10 transition-colors"
@@ -87,7 +134,15 @@ export default function RoundTable({
               <User className="w-4 h-4 text-white/30" />
             </button>
             <button
-              onClick={handleSettingsTap}
+              onClick={() => {
+                const newCount = adminTapCount + 1;
+                setAdminTapCount(newCount);
+                if (newCount >= 5) {
+                  setShowAdmin(true);
+                  setAdminTapCount(0);
+                }
+                setTimeout(() => setAdminTapCount(0), 3000);
+              }}
               className="p-2 rounded-lg hover:bg-white/10 transition-colors"
             >
               <Settings className="w-4 h-4 text-white/30" />
@@ -105,36 +160,45 @@ export default function RoundTable({
       <main className="flex-1 max-w-lg mx-auto w-full px-4 py-4 pb-24">
         {activeTab === 'table' && (
           <div className="animate-fade-in space-y-6">
-            {/* Online Legend */}
             <div className="flex items-center justify-center gap-3">
               <div className="flex items-center gap-2">
                 <div className="w-4 h-4 bg-green-500 rounded-full animate-pulse"></div>
                 <span className="text-white/80 text-xs font-medium">Online agora</span>
               </div>
             </div>
+
             <div className="relative aspect-square">
-              <div className="absolute inset-0 rounded-full bg-gradient-to-br from-green-800 to-green-950 border-4 border-yellow-600 shadow-2xl">
+              <div className="absolute inset-0 rounded-full bg-gradient-to-br from-green-800 to-green-950 border-4 border-yellow-600 shadow-2xl overflow-hidden">
                 <div className="absolute inset-4 rounded-full border border-green-600/30"></div>
                 <div className="absolute inset-12 rounded-full border border-green-600/20"></div>
 
                 {allAroundUsers.map((user, index) => {
-                  const pos = calculatePosition(index, allAroundUsers.length);
+                  const isCurrent = user._id === currentUser._id;
+                  const pos = isCurrent ? avatarPos : calculateBasePosition(index, allAroundUsers.length);
                   const isOnline = new Date(user.lastSeen) > new Date(Date.now() - 60000);
+                  const userChat = chats.find(c => c.userId === user._id);
+
                   return (
                     <div
                       key={user._id}
-                      className={`absolute transform -translate-x-1/2 -translate-y-1/2 flex flex-col items-center gap-1 ${isOnline ? '' : 'opacity-40'}`}
+                      className={`absolute transform -translate-x-1/2 -translate-y-1/2 flex flex-col items-center gap-1 transition-all duration-1000 ease-in-out ${isOnline ? '' : 'opacity-40'} ${isCurrent ? 'z-30' : 'z-20'}`}
                       style={{ left: `${pos.x}%`, top: `${pos.y}%` }}
                     >
+                      {userChat && (
+                        <div className="absolute bottom-full mb-2 bg-white text-black text-[10px] font-bold py-1 px-2 rounded-lg shadow-lg whitespace-nowrap animate-bounce z-50">
+                          {userChat.message}
+                          <div className="absolute top-full left-1/2 -translate-x-1/2 border-8 border-transparent border-t-white"></div>
+                        </div>
+                      )}
                       <div className="relative">
-                        <div className="w-12 h-12 rounded-full bg-white/10 border-2 border-white/20 flex items-center justify-center text-2xl shadow-lg">
+                        <div className={`w-12 h-12 rounded-full bg-white/10 border-2 flex items-center justify-center text-2xl shadow-lg ${isCurrent ? 'border-yellow-400 scale-110 shadow-yellow-400/20' : 'border-white/20'}`}>
                           {user.avatar}
                         </div>
                         {isOnline && (
                           <div className="absolute -bottom-1 -right-1 w-4 h-4 bg-green-500 rounded-full border-2 border-[#050816] animate-pulse"></div>
                         )}
                       </div>
-                      <span className="text-white/80 text-xs font-medium text-center w-20 truncate">{user.name}</span>
+                      <span className="text-white/80 text-[10px] font-medium text-center w-20 truncate">{user.name}</span>
                     </div>
                   );
                 })}
@@ -142,35 +206,45 @@ export default function RoundTable({
                 {foods.map((food) => (
                   <button
                     key={food._id}
-                    onClick={() => onCollectFood(food._id)}
-                    className="absolute transform -translate-x-1/2 -translate-y-1/2 text-3xl animate-bounce cursor-pointer hover:scale-125 transition-transform"
+                    onClick={() => handleCollectClick(food)}
+                    className="absolute transform -translate-x-1/2 -translate-y-1/2 text-3xl animate-bounce cursor-pointer hover:scale-125 transition-transform z-10"
                     style={{ left: `${food.x}%`, top: `${food.y}%` }}
                   >
                     {food.emoji}
                   </button>
                 ))}
 
-                <div className="absolute left-1/2 top-1/2 transform -translate-x-1/2 -translate-y-1/2 w-3/5">
+                <div className="absolute left-1/2 top-1/2 transform -translate-x-1/2 -translate-y-1/2 w-3/5 z-0 pointer-events-none opacity-40">
                   {nextMatch && (
-                    <div className="card p-4 text-center">
-                      <p className="text-white/50 text-xs mb-2">Próximo jogo</p>
-                      <div className="flex items-center justify-center gap-2 mb-2">
-                        <span className="text-2xl">{getFlag(nextMatch.team1)}</span>
-                        <span className="text-white/50">vs</span>
-                        <span className="text-2xl">{getFlag(nextMatch.team2)}</span>
+                    <div className="card p-4 text-center border-none bg-transparent">
+                      <p className="text-white/50 text-[10px] mb-1">Próximo jogo</p>
+                      <div className="flex items-center justify-center gap-2 mb-1">
+                        <span className="text-xl">{getFlag(nextMatch.team1)}</span>
+                        <span className="text-white/30">vs</span>
+                        <span className="text-xl">{getFlag(nextMatch.team2)}</span>
                       </div>
-                      {results[nextMatch.id] ? (
-                        <p className="text-yellow-400 font-bold text-xl">
-                          {results[nextMatch.id].homeGoals} - {results[nextMatch.id].awayGoals}
-                        </p>
-                      ) : (
-                        <Countdown targetDate={nextMatch.date} matchTime={nextMatch.time} />
-                      )}
                     </div>
                   )}
                 </div>
               </div>
             </div>
+
+            {/* Chat Input */}
+            <form onSubmit={handleSendChat} className="flex gap-2">
+              <input
+                type="text"
+                value={chatInput}
+                onChange={(e) => setChatInput(e.target.value)}
+                placeholder="Mande um salve..."
+                className="flex-1 bg-white/5 border border-white/10 rounded-xl px-4 py-2 text-white text-sm focus:outline-none focus:border-yellow-400"
+              />
+              <button
+                type="submit"
+                className="bg-yellow-500 hover:bg-yellow-400 text-black p-2 rounded-xl transition-colors"
+              >
+                <Send className="w-5 h-5" />
+              </button>
+            </form>
 
             {nextMatch && getMatchStatus(nextMatch as any) === 'open' && (
               <MatchCard

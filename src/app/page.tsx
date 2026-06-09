@@ -7,6 +7,7 @@ import { IUser } from '@/models/User';
 import { Match } from '@/data/matches';
 import { IResult } from '@/models/Result';
 import { IFood } from '@/models/Food';
+import { IChat } from '@/models/Chat';
 import { getMatchStatus } from '@/lib/services/matchService';
 
 export default function Home() {
@@ -15,6 +16,7 @@ export default function Home() {
   const [matches, setMatches] = useState<Match[]>([]);
   const [results, setResults] = useState<Record<string, IResult>>({});
   const [foods, setFoods] = useState<IFood[]>([]);
+  const [chats, setChats] = useState<IChat[]>([]);
   const [loading, setLoading] = useState(true);
 
   // Check local storage for existing user
@@ -39,16 +41,18 @@ export default function Home() {
   // Fetch data regularly
   const refreshData = useCallback(async () => {
     try {
-      const [usersRes, matchesRes, resultsRes, foodsRes] = await Promise.all([
+      const [usersRes, matchesRes, resultsRes, foodsRes, chatsRes] = await Promise.all([
         fetch('/api/users'),
         fetch('/api/matches'),
         fetch('/api/results'),
         fetch('/api/food'),
+        fetch('/api/chat'),
       ]);
       setUsers(await usersRes.json());
       setMatches(await matchesRes.json());
       setResults(await resultsRes.json());
       setFoods(await foodsRes.json());
+      setChats(await chatsRes.json());
 
       if (currentUser) {
         await fetch(`/api/users/${currentUser._id}/ping`, { method: 'POST' });
@@ -61,7 +65,7 @@ export default function Home() {
   useEffect(() => {
     if (currentUser) {
       refreshData();
-      const interval = setInterval(refreshData, 5000);
+      const interval = setInterval(refreshData, 3000);
       return () => clearInterval(interval);
     }
   }, [currentUser, refreshData]);
@@ -82,6 +86,24 @@ export default function Home() {
       return () => clearInterval(interval);
     }
   }, [currentUser]);
+
+  const handleSendMessage = async (message: string) => {
+    if (!currentUser) return;
+    try {
+      await fetch('/api/chat', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          userId: currentUser._id,
+          userName: currentUser.name,
+          message,
+        }),
+      });
+      refreshData();
+    } catch (error) {
+      console.error('Failed to send message:', error);
+    }
+  };
 
   const handleLogin = (user: IUser) => {
     setCurrentUser(user);
@@ -140,6 +162,8 @@ export default function Home() {
         nextMatch={nextMatch}
         results={results}
         foods={foods}
+        chats={chats}
+        onSendMessage={handleSendMessage}
         onCollectFood={handleCollectFood}
         onLogout={handleLogout}
       />
