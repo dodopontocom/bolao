@@ -185,24 +185,32 @@ export default function RoundTable({
               </div>
             </div>
 
-            <div className="relative aspect-square">
-              {/* Table Surface */}
-              <div className="absolute inset-0 rounded-full bg-gradient-to-br from-green-800 to-green-950 border-4 border-yellow-600 shadow-2xl overflow-hidden z-0">
+            <div className="relative aspect-square perspective-[1000px]">
+              {/* Table Surface with 3D Effect */}
+              <div 
+                className="absolute inset-0 rounded-full bg-gradient-to-br from-green-800 to-green-950 border-4 border-yellow-600 shadow-[0_20px_50px_rgba(0,0,0,0.5)] overflow-hidden z-0 transition-transform duration-700"
+                style={{ transform: 'rotateX(30deg) translateY(10px)' }}
+              >
                 <div className="absolute inset-4 rounded-full border border-green-600/30"></div>
                 <div className="absolute inset-12 rounded-full border border-green-600/20"></div>
+                {/* 3D Reflection */}
+                <div className="absolute inset-0 bg-gradient-to-t from-black/40 to-transparent pointer-events-none"></div>
               </div>
 
-              {/* Match Info (Center) */}
-              <div className="absolute left-1/2 top-1/2 transform -translate-x-1/2 -translate-y-1/2 w-3/5 z-10 pointer-events-none">
+              {/* Match Info (Center) - Floating above table */}
+              <div 
+                className="absolute left-1/2 top-1/2 transform -translate-x-1/2 -translate-y-1/2 w-3/5 z-10 pointer-events-none transition-transform duration-700"
+                style={{ transform: 'translate3d(-50%, -60%, 50px)' }}
+              >
                 {activeCenterMatch && (
                   <div className="card p-4 text-center border-none bg-transparent animate-fade-in" key={`${activeCenterMatch.id}-${activeCenterMatch.team1}-${activeCenterMatch.team2}`}>
                     <p className="text-white/50 text-[10px] mb-1">
                       {todayMatches.length > 1 ? `Jogo ${currentMatchIndex + 1} de ${todayMatches.length}` : 'Próximo jogo'}
                     </p>
                     <div className="flex items-center justify-center gap-2 mb-2">
-                      <span className="text-xl">{getFlag(activeCenterMatch.team1)}</span>
+                      <span className="text-xl drop-shadow-lg">{getFlag(activeCenterMatch.team1)}</span>
                       <span className="text-white/30">vs</span>
-                      <span className="text-xl">{getFlag(activeCenterMatch.team2)}</span>
+                      <span className="text-xl drop-shadow-lg">{getFlag(activeCenterMatch.team2)}</span>
                     </div>
                     <div className="flex justify-center">
                       <Countdown matchDate={activeCenterMatch.matchDate} />
@@ -212,7 +220,7 @@ export default function RoundTable({
               </div>
 
               {/* Users Around the Table */}
-              <div className="absolute inset-0 z-30 pointer-events-none">
+              <div className="absolute inset-0 z-30 pointer-events-none" style={{ perspective: '1000px' }}>
                 {allAroundUsers.map((user, index) => {
                   const isCurrent = user._id === currentUser._id;
                   const pos = isCurrent ? avatarPos : calculateBasePosition(index, allAroundUsers.length);
@@ -223,47 +231,55 @@ export default function RoundTable({
                   return (
                     <div
                       key={user._id}
-                      className={`absolute transform -translate-x-1/2 -translate-y-1/2 flex flex-col items-center gap-1 transition-all duration-1000 ease-in-out pointer-events-auto ${isOnline ? '' : 'opacity-40'} ${isCurrent ? 'z-50' : 'z-40'}`}
-                      style={{ left: `${pos.x}%`, top: `${pos.y}%` }}
+                      className={`absolute flex flex-col items-center gap-1 transition-all duration-1000 ease-in-out pointer-events-auto ${isOnline ? '' : 'opacity-40'} ${isCurrent ? 'z-50' : 'z-40'}`}
+                      style={{ 
+                        left: `${pos.x}%`, 
+                        top: `${pos.y}%`,
+                        transform: 'translate(-50%, -50%) rotateX(-15deg) translateZ(20px)'
+                      }}
                     >
                       {(userChat || (isJargonActive && user.jargon)) && (
-                        <div className="absolute bottom-full mb-2 bg-white text-black text-[10px] font-bold py-1 px-2 rounded-lg shadow-xl whitespace-nowrap animate-bounce z-50 ring-2 ring-black/5">
+                        <div className="absolute bottom-full mb-2 bg-white text-black text-[10px] font-bold py-1 px-2 rounded-lg shadow-2xl whitespace-nowrap animate-bounce z-50 ring-2 ring-black/5">
                           {isJargonActive && user.jargon ? user.jargon : userChat?.message}
                           <div className="absolute top-full left-1/2 -translate-x-1/2 border-8 border-transparent border-t-white"></div>
                         </div>
                       )}
-                      <div className="relative">
+                      <div className="relative group">
                         <button
                           onClick={() => user.jargon && setActiveJargonUserId(user._id)}
-                          className={`w-12 h-12 rounded-full bg-white/10 border-2 flex items-center justify-center text-2xl shadow-lg transition-transform ${isCurrent ? 'border-yellow-400 scale-110 shadow-yellow-400/20' : 'border-white/20 hover:scale-110'}`}
+                          className={`w-12 h-12 rounded-full bg-white/10 border-2 flex items-center justify-center text-2xl shadow-2xl transition-all duration-300 ${isCurrent ? 'border-yellow-400 scale-110 shadow-yellow-400/40 ring-4 ring-yellow-400/20' : 'border-white/20 hover:scale-110 hover:border-white/40'}`}
                         >
                           {user.avatar}
                           {user.correctPredictions > 0 && (
-                            <div className="absolute -top-1 -left-1 bg-green-500 text-white text-[10px] font-black px-1.5 py-0.5 rounded-full border border-black shadow-lg flex items-center justify-center min-w-[20px]">
+                            <div className="absolute -top-2 -left-2 bg-green-500 text-white text-[10px] font-black px-1.5 py-0.5 rounded-full border border-black shadow-lg flex items-center justify-center min-w-[20px] z-10">
                               {user.correctPredictions}
                             </div>
                           )}
                         </button>
                         {isOnline && (
-                          <div className="absolute -bottom-1 -right-1 w-4 h-4 bg-green-500 rounded-full border-2 border-[#050816] animate-pulse"></div>
+                          <div className="absolute -bottom-1 -right-1 w-4 h-4 bg-green-500 rounded-full border-2 border-[#050816] animate-pulse shadow-[0_0_10px_#22c55e]"></div>
                         )}
+                        {/* Shadow for 3D effect */}
+                        <div className="absolute -bottom-2 left-1/2 -translate-x-1/2 w-8 h-2 bg-black/40 blur-sm rounded-full -z-10 group-hover:w-10 transition-all"></div>
                       </div>
-                      <span className="text-white/80 text-[10px] font-medium text-center w-20 truncate">{user.name}</span>
+                      <span className="text-white font-bold text-[10px] text-center w-24 truncate drop-shadow-md bg-black/20 px-2 py-0.5 rounded-full mt-1 border border-white/5">
+                        {user.name}
+                      </span>
                     </div>
                   );
                 })}
               </div>
 
               {/* Food on the Table */}
-              <div className="absolute inset-0 z-20">
+              <div className="absolute inset-0 z-20" style={{ transform: 'rotateX(30deg) translateY(10px)', transformStyle: 'preserve-3d' }}>
                 {foods.map((food) => (
                   <button
                     key={food._id}
                     onClick={() => handleCollectClick(food)}
                     className="absolute transform -translate-x-1/2 -translate-y-1/2 text-3xl animate-bounce cursor-pointer hover:scale-125 transition-transform z-10"
-                    style={{ left: `${food.x}%`, top: `${food.y}%` }}
+                    style={{ left: `${food.x}%`, top: `${food.y}%`, transform: 'translate3d(-50%, -50%, 30px) rotateX(-30deg)' }}
                   >
-                    {food.emoji}
+                    <span className="drop-shadow-[0_10px_10px_rgba(0,0,0,0.5)]">{food.emoji}</span>
                   </button>
                 ))}
               </div>
