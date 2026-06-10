@@ -1,6 +1,26 @@
 import { Match } from '@/data/matches';
 
-export function getMatchStatus(match: Match, now: number = Date.now()): 'upcoming' | 'open' | 'closed' | 'finished' {
+// In development, we can override the current time
+let timeOffset = 0;
+
+export function setSimulatedOffset(offset: number) {
+  if (process.env.NODE_ENV === 'development') {
+    timeOffset = offset;
+    if (typeof window !== 'undefined') {
+      localStorage.setItem('devTimeOffset', offset.toString());
+    }
+  }
+}
+
+export function getNow(): number {
+  if (process.env.NODE_ENV === 'development' && typeof window !== 'undefined') {
+    const saved = localStorage.getItem('devTimeOffset');
+    if (saved) return Date.now() + parseInt(saved);
+  }
+  return Date.now() + timeOffset;
+}
+
+export function getMatchStatus(match: Match, now: number = getNow()): 'upcoming' | 'open' | 'closed' | 'finished' {
   if (match.score1 !== undefined && match.score2 !== undefined) return 'finished';
   const matchDate = match.matchDate || new Date(match.date).getTime();
   const closeTime = matchDate - 2 * 60 * 1000;

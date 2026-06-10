@@ -38,8 +38,8 @@ function groupMatchesByWeek(matches: Match[]) {
 function formatWeekLabel(date: Date) {
   const end = new Date(date);
   end.setDate(end.getDate() + 6);
-  const startStr = date.toLocaleDateString('pt-BR', { day: '2-digit', month: '2-digit' });
-  const endStr = end.toLocaleDateString('pt-BR', { day: '2-digit', month: '2-digit', year: 'numeric' });
+  const startStr = date.toLocaleDateString('pt-BR', { day: '2-digit', month: '2-digit', timeZone: 'America/Sao_Paulo' });
+  const endStr = end.toLocaleDateString('pt-BR', { day: '2-digit', month: '2-digit', year: 'numeric', timeZone: 'America/Sao_Paulo' });
   return `${startStr} - ${endStr}`;
 }
 
@@ -87,7 +87,7 @@ export default function MatchList({ matches, userName, userId, currentUser, resu
           <div className="space-y-3">
             {currentWeek?.matches.map((match) => (
               <MatchCard
-                key={match.id}
+                key={`${match.id}-${match.team1}-${match.team2}`}
                 match={match}
                 userName={userName}
                 userId={userId}

@@ -5,6 +5,7 @@ export interface IPrediction extends Document {
   matchId: string;
   homeGoals: number;
   awayGoals: number;
+  settled?: boolean;
 }
 
 const PredictionSchema = new Schema<IPrediction>({
@@ -12,6 +13,7 @@ const PredictionSchema = new Schema<IPrediction>({
   matchId: { type: String, required: true },
   homeGoals: { type: Number, required: true },
   awayGoals: { type: Number, required: true },
+  settled: { type: Boolean, default: false },
 }, {
   timestamps: true,
 });

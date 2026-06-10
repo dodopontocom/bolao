@@ -34,6 +34,14 @@ export default function MatchCard({ match, userName, userId, currentUser, result
   const isFinished = status === 'finished' || (result?.finished);
   const isClosed = status === 'closed' || isFinished;
 
+  const userBet = bets.find(b => (b.userId?._id === userId || b.userId === userId));
+
+  useEffect(() => {
+    if (userBet && !betting) {
+      setBetOutcome(userBet.outcome);
+      setBetAmount(userBet.amount.toString());
+    }
+  }, [userBet, betting]);
   useEffect(() => {
     const loadData = async () => {
       try {
@@ -111,16 +119,18 @@ export default function MatchCard({ match, userName, userId, currentUser, result
     setError(null);
     try {
       const odd = oddsRaw[betOutcome];
+      const payload = {
+        userId,
+        matchId: match.id,
+        amount,
+        outcome: betOutcome,
+        odd,
+      };
+      
       const res = await fetch('/api/bets', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          userId,
-          matchId: match.id,
-          amount,
-          outcome: betOutcome,
-          odd,
-        }),
+        body: JSON.stringify(payload),
       });
 
       const data = await res.json();
@@ -146,14 +156,16 @@ export default function MatchCard({ match, userName, userId, currentUser, result
     return new Date(timestamp).toLocaleTimeString('pt-BR', { 
       hour: '2-digit', 
       minute: '2-digit',
-      hour12: false 
+      hour12: false,
+      timeZone: 'America/Sao_Paulo'
     });
   };
 
   const formatDate = (timestamp: number) => {
     return new Date(timestamp).toLocaleDateString('pt-BR', { 
       day: '2-digit', 
-      month: '2-digit' 
+      month: '2-digit',
+      timeZone: 'America/Sao_Paulo'
     });
   };
 
@@ -171,8 +183,6 @@ export default function MatchCard({ match, userName, userId, currentUser, result
     }
     return <span className="bg-red-500/30 text-red-400 text-[10px] font-bold px-2 py-0.5 rounded-full">0</span>;
   };
-
-  const userBet = bets.find(b => (b.userId?._id === userId || b.userId === userId));
 
   if (loading) {
     return (
@@ -310,20 +320,54 @@ export default function MatchCard({ match, userName, userId, currentUser, result
         </div>
       </div>
 
-      {userBet && !showBetting && (
-        <div className="mt-3 p-3 bg-white/5 border border-white/10 rounded-xl flex items-center justify-between animate-fade-in">
-          <div className="flex flex-col">
-            <span className="text-[10px] text-white/40 uppercase font-bold tracking-wider">Sua Aposta</span>
-            <span className="text-sm font-bold text-white">
-              {userBet.outcome === 'home' ? match.team1 : userBet.outcome === 'draw' ? 'Empate' : match.team2}
-            </span>
+      {userBet && (
+        <div className="mt-3 p-3 bg-white/5 border border-white/10 rounded-xl space-y-2 animate-fade-in">
+          <div className="flex items-center justify-between">
+            <div className="flex flex-col">
+              <span className="text-[10px] text-white/40 uppercase font-bold tracking-wider">Sua Aposta (N$)</span>
+              <span className="text-sm font-bold text-white">
+                {userBet.outcome === 'home' ? match.team1 : userBet.outcome === 'draw' ? 'Empate' : match.team2}
+              </span>
+            </div>
+            <div className="flex flex-col items-end">
+              <span className="text-[10px] text-white/40 uppercase font-bold tracking-wider">
+                {isFinished ? 'Resultado' : 'Possível Retorno'}
+              </span>
+              <span className={`text-sm font-bold ${isFinished ? (userBet.won ? 'text-green-400' : 'text-red-400') : 'text-green-400'}`}>
+                {isFinished 
+                  ? (userBet.won ? `+ N$ ${userBet.payout.toLocaleString()}` : `- N$ ${userBet.amount.toLocaleString()}`)
+                  : `N$ ${(userBet.amount * userBet.odd).toLocaleString()}`
+                }
+              </span>
+            </div>
           </div>
-          <div className="flex flex-col items-end">
-            <span className="text-[10px] text-white/40 uppercase font-bold tracking-wider">Retorno</span>
-            <span className="text-sm font-bold text-green-400">
-              N$ {(userBet.amount * userBet.odd).toLocaleString()}
-            </span>
-          </div>
+          
+          {(score1 || score2) && (
+            <div className="pt-2 border-t border-white/5 flex items-center justify-between">
+              <div className="flex flex-col">
+                <span className="text-[10px] text-white/40 uppercase font-bold tracking-wider">Seu Placar (Bolão)</span>
+                <span className="text-sm font-bold text-white">
+                  {score1 || '0'} x {score2 || '0'}
+                </span>
+              </div>
+              {isFinished && (
+                <div className="flex flex-col items-end">
+                  <span className="text-[10px] text-white/40 uppercase font-bold tracking-wider">Bônus</span>
+                  {(() => {
+                    const reward = calculatePredictionReward(
+                      { homeGoals: parseInt(score1 || '0'), awayGoals: parseInt(score2 || '0') },
+                      result!
+                    );
+                    return (
+                      <span className={`text-sm font-bold ${reward > 0 ? 'text-green-400' : 'text-white/20'}`}>
+                        {reward > 0 ? `+ N$ ${reward.toLocaleString()}` : '0'}
+                      </span>
+                    );
+                  })()}
+                </div>
+              )}
+            </div>
+          )}
         </div>
       )}
 
@@ -372,7 +416,12 @@ export default function MatchCard({ match, userName, userId, currentUser, result
           </div>
           {userBet && (
             <div className="text-center text-white/40 text-[10px]">
-              Aposta atual: N${userBet.amount.toLocaleString()} em {userBet.outcome === 'home' ? match.team1 : userBet.outcome === 'draw' ? 'Empate' : match.team2} ({userBet.odd}x) → <span className="text-green-400 font-bold">Retorno: N${(userBet.amount * userBet.odd).toLocaleString()}</span>
+              Aposta atual: N${userBet.amount.toLocaleString()} em {userBet.outcome === 'home' ? match.team1 : userBet.outcome === 'draw' ? 'Empate' : match.team2} ({userBet.odd.toFixed(2)}x) → <span className="text-green-400 font-bold">Retorno: N${(userBet.amount * userBet.odd).toLocaleString()}</span>
+              {betOutcome !== userBet.outcome && (
+                <div className="mt-1 text-yellow-400/60 italic">
+                  Nova Odd selecionada: {odds[betOutcome]}x
+                </div>
+              )}
             </div>
           )}
         </div>

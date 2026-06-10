@@ -1,19 +1,22 @@
 'use client';
 
 import { useState, useEffect } from 'react';
+import { getNow } from '@/lib/services/matchService';
 
 interface CountdownProps {
   matchDate: number; // UTC timestamp
 }
 
 export default function Countdown({ matchDate }: CountdownProps) {
+  const [mounted, setMounted] = useState(false);
   const [timeLeft, setTimeLeft] = useState('');
 
   useEffect(() => {
+    setMounted(true);
     const closeTime = new Date(matchDate - 2 * 60 * 1000);
 
     const tick = () => {
-      const now = Date.now();
+      const now = getNow();
       const diff = closeTime.getTime() - now;
 
       if (diff <= 0) {
@@ -41,6 +44,8 @@ export default function Countdown({ matchDate }: CountdownProps) {
   }, [matchDate]);
 
   const isClosed = timeLeft === 'ENCERRADO';
+
+  if (!mounted) return <div className="h-5" />; // Placeholder to maintain layout
 
   return (
     <div className={`flex items-center gap-1.5 text-xs font-medium ${isClosed ? 'text-red-400' : 'text-yellow-400'}`}>

@@ -15,7 +15,7 @@ import Ranking from '@/components/Ranking';
 import MatchList from '@/components/MatchList';
 import Countdown from '@/components/Countdown';
 import Tutorial from '@/components/Tutorial';
-import { getMatchStatus } from '@/lib/services/matchService';
+import { getMatchStatus, getNow } from '@/lib/services/matchService';
 
 interface RoundTableProps {
   currentUser: IUser;
@@ -43,16 +43,45 @@ export default function RoundTable({
   onSendMessage,
   onCollectFood,
   onLogout,
-}: RoundTableProps) {
+  activeTab,
+  setActiveTab,
+  showAdmin,
+  setShowAdmin,
+  showTutorial,
+  setShowTutorial,
+}: any) {
   const router = useRouter();
-  const [activeTab, setActiveTab] = useState<Tab>('table');
-  const [showAdmin, setShowAdmin] = useState(false);
   const [adminTapCount, setAdminTapCount] = useState(0);
   const [chatInput, setChatInput] = useState('');
   const [movingToFood, setMovingToFood] = useState<{ id: string, x: number, y: number } | null>(null);
   const [isReturning, setIsReturning] = useState(false);
-  const [showTutorial, setShowTutorial] = useState(false);
   const [activeJargonUserId, setActiveJargonUserId] = useState<string | null>(null);
+  const [currentMatchIndex, setCurrentMatchIndex] = useState(0);
+
+  // Filter matches for "today" (simulated or real)
+  const todayMatches = useMemo(() => {
+    const now = getNow();
+    
+    // Get date string in SP timezone: "YYYY-MM-DD"
+    const spDateStr = new Date(now).toLocaleDateString('en-CA', { timeZone: 'America/Sao_Paulo' });
+    
+    return matches.filter(m => {
+      const mDate = m.matchDate || new Date(m.date).getTime();
+      const mDateStr = new Date(mDate).toLocaleDateString('en-CA', { timeZone: 'America/Sao_Paulo' });
+      return mDateStr === spDateStr;
+    }).sort((a, b) => (a.matchDate || 0) - (b.matchDate || 0));
+  }, [matches]);
+
+  // Rotate center match if there are multiple matches today
+  useEffect(() => {
+    if (todayMatches.length <= 1) return;
+    const interval = setInterval(() => {
+      setCurrentMatchIndex(prev => (prev + 1) % todayMatches.length);
+    }, 5000); // Rotate every 5 seconds
+    return () => clearInterval(interval);
+  }, [todayMatches.length]);
+
+  const activeCenterMatch = todayMatches[currentMatchIndex] || nextMatch;
 
   // Check for first time tutorial
   useEffect(() => {
@@ -143,76 +172,7 @@ export default function RoundTable({
   const canClaim = nextMatch && currentUser.foodPoints >= 10 && currentUser.lastClaimedMatchId !== nextMatch.id;
 
   return (
-    <div className="min-h-screen flex flex-col">
-      <header className="sticky top-0 z-40 bg-[#050816]/90 backdrop-blur-md border-b border-white/10">
-        <div className="max-w-lg mx-auto px-4 py-3 flex items-center justify-between">
-          <button 
-            onClick={() => router.push('/profile')}
-            className="flex items-center gap-2 hover:bg-white/5 transition-colors p-1 -ml-1 rounded-lg"
-          >
-            <div className="w-10 h-10 rounded-full bg-gradient-to-br from-green-500 to-green-700 flex items-center justify-center text-xl">
-              {currentUser.avatar}
-            </div>
-            <div className="text-left">
-              <p className="text-white font-medium text-sm">
-                {currentUser.name}
-                {currentUser.city && <span className="ml-2 text-[10px] text-white/40 font-normal">({currentUser.city})</span>}
-              </p>
-              <div className="flex items-center gap-3">
-                <p className="text-yellow-400 text-xs font-bold">N${currentUser.balance.toLocaleString()}</p>
-                <div className="flex items-center gap-1 text-green-400">
-                  <Utensils className="w-3 h-3" />
-                  <span className="text-xs font-bold">{currentUser.foodPoints || 0}</span>
-                </div>
-              </div>
-            </div>
-          </button>
-
-          <div className="flex items-center gap-1">
-            <button
-              onClick={() => setActiveTab('table')}
-              className="p-2 rounded-lg hover:bg-white/10 transition-colors"
-              title="Ir para a Mesa"
-            >
-              <Home className={`w-4 h-4 ${activeTab === 'table' ? 'text-yellow-400' : 'text-white/30'}`} />
-            </button>
-            <button
-              onClick={() => router.push('/profile')}
-              className="p-2 rounded-lg hover:bg-white/10 transition-colors"
-            >
-              <User className="w-4 h-4 text-white/30" />
-            </button>
-            <button
-              onClick={() => setShowTutorial(true)}
-              className="p-2 rounded-lg hover:bg-white/10 transition-colors"
-              title="Como funciona?"
-            >
-              <HelpCircle className="w-4 h-4 text-white/30" />
-            </button>
-            <button
-              onClick={() => {
-                const newCount = adminTapCount + 1;
-                setAdminTapCount(newCount);
-                if (newCount >= 5) {
-                  setShowAdmin(true);
-                  setAdminTapCount(0);
-                }
-                setTimeout(() => setAdminTapCount(0), 3000);
-              }}
-              className="p-2 rounded-lg hover:bg-white/10 transition-colors"
-            >
-              <Settings className="w-4 h-4 text-white/30" />
-            </button>
-            <button
-              onClick={onLogout}
-              className="p-2 rounded-lg hover:bg-white/10 transition-colors"
-            >
-              <LogOut className="w-4 h-4 text-white/30" />
-            </button>
-          </div>
-        </div>
-      </header>
-
+    <div className="flex flex-col">
       <main className="flex-1 max-w-lg mx-auto w-full px-4 py-4 pb-24">
         {activeTab === 'table' && (
           <div className="animate-fade-in space-y-6">
@@ -234,16 +194,18 @@ export default function RoundTable({
 
               {/* Match Info (Center) */}
               <div className="absolute left-1/2 top-1/2 transform -translate-x-1/2 -translate-y-1/2 w-3/5 z-10 pointer-events-none">
-                {nextMatch && (
-                  <div className="card p-4 text-center border-none bg-transparent">
-                    <p className="text-white/50 text-[10px] mb-1">Próximo jogo</p>
+                {activeCenterMatch && (
+                  <div className="card p-4 text-center border-none bg-transparent animate-fade-in" key={`${activeCenterMatch.id}-${activeCenterMatch.team1}-${activeCenterMatch.team2}`}>
+                    <p className="text-white/50 text-[10px] mb-1">
+                      {todayMatches.length > 1 ? `Jogo ${currentMatchIndex + 1} de ${todayMatches.length}` : 'Próximo jogo'}
+                    </p>
                     <div className="flex items-center justify-center gap-2 mb-2">
-                      <span className="text-xl">{getFlag(nextMatch.team1)}</span>
+                      <span className="text-xl">{getFlag(activeCenterMatch.team1)}</span>
                       <span className="text-white/30">vs</span>
-                      <span className="text-xl">{getFlag(nextMatch.team2)}</span>
+                      <span className="text-xl">{getFlag(activeCenterMatch.team2)}</span>
                     </div>
                     <div className="flex justify-center">
-                      <Countdown matchDate={nextMatch.matchDate} />
+                      <Countdown matchDate={activeCenterMatch.matchDate} />
                     </div>
                   </div>
                 )}
@@ -276,6 +238,11 @@ export default function RoundTable({
                           className={`w-12 h-12 rounded-full bg-white/10 border-2 flex items-center justify-center text-2xl shadow-lg transition-transform ${isCurrent ? 'border-yellow-400 scale-110 shadow-yellow-400/20' : 'border-white/20 hover:scale-110'}`}
                         >
                           {user.avatar}
+                          {user.correctPredictions > 0 && (
+                            <div className="absolute -top-1 -left-1 bg-green-500 text-white text-[10px] font-black px-1.5 py-0.5 rounded-full border border-black shadow-lg flex items-center justify-center min-w-[20px]">
+                              {user.correctPredictions}
+                            </div>
+                          )}
                         </button>
                         {isOnline && (
                           <div className="absolute -bottom-1 -right-1 w-4 h-4 bg-green-500 rounded-full border-2 border-[#050816] animate-pulse"></div>
@@ -329,15 +296,36 @@ export default function RoundTable({
               </button>
             </form>
 
-            {nextMatch && getMatchStatus(nextMatch as any) === 'open' && (
-              <MatchCard
-                match={nextMatch as any}
-                userName={currentUser.name}
-                userId={currentUser._id}
-                currentUser={currentUser}
-                result={results[nextMatch.id] || null}
-              />
-            )}
+            <div className="space-y-4">
+              <div className="flex items-center justify-between px-2">
+                <h3 className="text-white/40 text-[10px] font-bold uppercase tracking-wider">
+                  {todayMatches.length > 0 ? 'Jogos de Hoje' : 'Próximo Jogo'}
+                </h3>
+              </div>
+              
+              {todayMatches.length > 0 ? (
+                todayMatches.map(match => (
+                  <MatchCard
+                    key={`${match.id}-${match.team1}-${match.team2}`}
+                    match={match as any}
+                    userName={currentUser.name}
+                    userId={currentUser._id}
+                    currentUser={currentUser}
+                    result={results[match.id] || null}
+                  />
+                ))
+              ) : (
+                nextMatch && (
+                  <MatchCard
+                    match={nextMatch as any}
+                    userName={currentUser.name}
+                    userId={currentUser._id}
+                    currentUser={currentUser}
+                    result={results[nextMatch.id] || null}
+                  />
+                )
+              )}
+            </div>
           </div>
         )}
 
@@ -359,43 +347,6 @@ export default function RoundTable({
           </div>
         )}
       </main>
-
-      <Tutorial isOpen={showTutorial} onClose={() => setShowTutorial(false)} />
-
-      <nav className="fixed bottom-0 left-0 right-0 z-40 bg-[#050816]/95 backdrop-blur-md border-t border-white/10">
-        <div className="max-w-lg mx-auto flex">
-          <button
-            onClick={() => setActiveTab('table')}
-            className={`flex-1 flex flex-col items-center gap-0.5 py-3 transition-all duration-200 ${activeTab === 'table' ? 'text-yellow-400' : 'text-white/40 hover:text-white/60'}`}
-          >
-            <div className="w-5 h-5 rounded-full bg-gradient-to-br from-green-500 to-green-700"></div>
-            <span className="text-[10px] font-bold uppercase tracking-widest">Mesa</span>
-            {activeTab === 'table' && <div className="w-1 h-1 rounded-full bg-yellow-400 mt-0.5"></div>}
-          </button>
-          <button
-            onClick={() => setActiveTab('matches')}
-            className={`flex-1 flex flex-col items-center gap-0.5 py-3 transition-all duration-200 ${activeTab === 'matches' ? 'text-yellow-400' : 'text-white/40 hover:text-white/60'}`}
-          >
-            <List className="w-5 h-5" />
-            <span className="text-[10px] font-bold uppercase tracking-widest">Jogos</span>
-            {activeTab === 'matches' && <div className="w-1 h-1 rounded-full bg-yellow-400 mt-0.5"></div>}
-          </button>
-          <button
-            onClick={() => setActiveTab('ranking')}
-            className={`flex-1 flex flex-col items-center gap-0.5 py-3 transition-all duration-200 ${activeTab === 'ranking' ? 'text-yellow-400' : 'text-white/40 hover:text-white/60'}`}
-          >
-            <BarChart3 className="w-5 h-5" />
-            <span className="text-[10px] font-bold uppercase tracking-widest">Ranking</span>
-            {activeTab === 'ranking' && <div className="w-1 h-1 rounded-full bg-yellow-400 mt-0.5"></div>}
-          </button>
-        </div>
-      </nav>
-
-      {showAdmin && (
-        <AdminPanel
-          onClose={() => setShowAdmin(false)}
-        />
-      )}
     </div>
   );
 }
